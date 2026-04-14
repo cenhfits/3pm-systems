@@ -636,14 +636,25 @@ const WorkoutProgramSelector = ({ programs }) => {
 };
 
 // ── Lesson View ───────────────────────────────────────────────────────────────
+// FIX 1: Pisahkan tombol "Pelajaran Berikutnya" dari "Tandai Selesai & Lanjut"
+// FIX 2: Bug loading stuck — setLoading(false) sekarang selalu dipanggil di finally
 const LessonView = ({ lesson, isCompleted, onComplete, onBack, nextLesson, onNextLesson, nextChapter, onNextChapter }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [justCompleted, setJustCompleted] = useState(false);
 
-  const handleComplete = async () => {
-    if (isCompleted) {
-      // Already done — just go next
-      if (nextLesson) { onNextLesson(); return; }
+  const effectivelyCompleted = isCompleted || justCompleted;
+
+  // Kasus: ada materi berikutnya di chapter yang sama — tampilkan tombol "Pelajaran Berikutnya" saja
+  // Tombol ini TIDAK perlu menandai selesai dulu (hanya navigasi)
+  const handleNextLesson = () => {
+    onNextLesson();
+  };
+
+  // Kasus: ini materi terakhir di chapter, tombol untuk tandai selesai & lanjut ke chapter berikutnya
+  const handleCompleteAndAdvance = async () => {
+    // Jika sudah selesai sebelumnya, langsung navigasi
+    if (effectivelyCompleted) {
       if (nextChapter) { onNextChapter(); return; }
       return;
     }
@@ -651,13 +662,33 @@ const LessonView = ({ lesson, isCompleted, onComplete, onBack, nextLesson, onNex
     setError('');
     try {
       await onComplete();
-      // Auto-navigate after marking complete
-      if (nextLesson) { onNextLesson(); return; }
-      if (nextChapter) { onNextChapter(); return; }
+      setJustCompleted(true);
+      // Navigasi ke chapter berikutnya setelah sukses ditangani di parent (onNextChapter akan trigger feedback)
+      if (nextChapter) {
+        onNextChapter();
+        return;
+      }
     } catch {
       setError('Gagal menyimpan. Cek koneksi internet kamu.');
+    } finally {
+      // FIX 2: Selalu reset loading di finally agar tidak stuck
+      setLoading(false);
     }
-    setLoading(false);
+  };
+
+  // Kasus: materi terakhir, tidak ada chapter berikutnya — hanya tandai selesai
+  const handleMarkDone = async () => {
+    if (effectivelyCompleted) return;
+    setLoading(true);
+    setError('');
+    try {
+      await onComplete();
+      setJustCompleted(true);
+    } catch {
+      setError('Gagal menyimpan. Cek koneksi internet kamu.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -746,12 +777,7 @@ const LessonView = ({ lesson, isCompleted, onComplete, onBack, nextLesson, onNex
               return (
                 <div key={i} className="my-6">
                   {block.caption && <p className="text-white font-semibold text-base mb-2">{block.caption}</p>}
-                  <img
-                    src={block.src}
-                    alt={block.alt || ''}
-                    style={{ width: '100%', height: 'auto', display: 'block', borderRadius: '0.75rem' }}
-                    onError={e => { e.target.style.display = 'none'; }}
-                  />
+                  <img src={block.src} alt={block.alt || ''} style={{ width: '100%', height: 'auto', display: 'block', borderRadius: '0.75rem' }} onError={e => { e.target.style.display = 'none'; }} />
                 </div>
               );
             case 'image':
@@ -764,24 +790,11 @@ const LessonView = ({ lesson, isCompleted, onComplete, onBack, nextLesson, onNex
               }
               return (
                 <div key={i} className="my-6">
-                  {block.caption && (
-                    <p className="text-white font-semibold text-base mb-2">{block.caption}</p>
-                  )}
+                  {block.caption && <p className="text-white font-semibold text-base mb-2">{block.caption}</p>}
                   {block.large ? (
-                    <img
-                      src={block.src}
-                      alt={block.alt || ''}
-                      style={{ width: '100%', height: 'auto', display: 'block', borderRadius: '0.75rem', objectFit: 'unset' }}
-                      onError={e => { e.target.style.display = 'none'; }}
-                    />
+                    <img src={block.src} alt={block.alt || ''} style={{ width: '100%', height: 'auto', display: 'block', borderRadius: '0.75rem', objectFit: 'unset' }} onError={e => { e.target.style.display = 'none'; }} />
                   ) : (
-                    <img
-                      src={block.src}
-                      alt={block.alt || ''}
-                      className="rounded-xl w-full object-cover"
-                      style={{ maxHeight: block.fit === 'contain' ? undefined : '288px', objectFit: block.fit === 'contain' ? 'contain' : 'cover' }}
-                      onError={e => { e.target.style.display = 'none'; }}
-                    />
+                    <img src={block.src} alt={block.alt || ''} className="rounded-xl w-full object-cover" style={{ maxHeight: block.fit === 'contain' ? undefined : '288px', objectFit: block.fit === 'contain' ? 'contain' : 'cover' }} onError={e => { e.target.style.display = 'none'; }} />
                   )}
                 </div>
               );
@@ -809,7 +822,6 @@ const LessonView = ({ lesson, isCompleted, onComplete, onBack, nextLesson, onNex
               return null;
           }
         }) : lesson.content.split('\n').map((line, i) => {
-          // Legacy string renderer for other chapters
           const html = line.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>').replace(/\*(.*?)\*/g, '<em>$1</em>');
           if (line.startsWith('- ')) return <p key={i} className="text-neutral-300 leading-7 flex gap-3 my-1"><span className="flex-shrink-0 mt-2.5 w-1.5 h-1.5 rounded-full bg-neutral-400" /><span dangerouslySetInnerHTML={{ __html: line.slice(2) }} /></p>;
           if (line.match(/^\d+\./)) return <p key={i} className="text-neutral-300 leading-7 my-1" dangerouslySetInnerHTML={{ __html: html }} />;
@@ -818,29 +830,56 @@ const LessonView = ({ lesson, isCompleted, onComplete, onBack, nextLesson, onNex
         })}
       </div>
 
+      {/* ── Action Buttons ── */}
       <div className="mt-8 pt-6 border-t border-white/10 space-y-2">
         {error && <p className="text-red-400 text-xs text-center">{error}</p>}
-        <button
-          onClick={handleComplete}
-          disabled={loading}
-          className={`w-full py-3 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-all duration-200 disabled:opacity-60 ${
-            isCompleted
-              ? (nextLesson || nextChapter)
+
+        {/* CASE 1: Ada materi berikutnya di chapter yang sama → hanya tampil "Pelajaran Berikutnya" */}
+        {nextLesson ? (
+          <button
+            onClick={handleNextLesson}
+            className="w-full py-3 rounded-xl font-bold text-sm flex items-center justify-center gap-2 bg-orange-500 hover:bg-orange-400 text-black hover:shadow-lg hover:shadow-orange-500/30 transition-all duration-200"
+          >
+            <ChevronRight className="w-4 h-4" />
+            Pelajaran Berikutnya
+          </button>
+        ) : nextChapter ? (
+          /* CASE 2: Materi terakhir di chapter, ada chapter berikutnya → "Tandai Selesai & Lanjut" */
+          <button
+            onClick={handleCompleteAndAdvance}
+            disabled={loading}
+            className={`w-full py-3 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-all duration-200 disabled:opacity-60 ${
+              effectivelyCompleted
                 ? 'bg-orange-500 hover:bg-orange-400 text-black hover:shadow-lg hover:shadow-orange-500/30'
-                : 'bg-green-500/20 border border-green-500/30 text-green-400'
-              : 'bg-orange-500 hover:bg-orange-400 text-black hover:shadow-lg hover:shadow-orange-500/30'
-          }`}
-        >
-          {loading
-            ? <><div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />Menyimpan...</>
-            : isCompleted && (nextLesson || nextChapter)
-              ? <><ChevronRight className="w-4 h-4" />{nextLesson ? 'Pelajaran Berikutnya' : `Lanjut ke ${nextChapter.title}`}</>
-              : isCompleted
-                ? <><CheckCircle className="w-4 h-4" />Selesai Dipelajari</>
+                : 'bg-orange-500 hover:bg-orange-400 text-black hover:shadow-lg hover:shadow-orange-500/30'
+            }`}
+          >
+            {loading
+              ? <><div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />Menyimpan...</>
+              : effectivelyCompleted
+                ? <><ChevronRight className="w-4 h-4" />Lanjut ke {nextChapter.title}</>
                 : <><CheckCircle className="w-4 h-4" />Tandai Selesai & Lanjut</>
-          }
-        </button>
-        {isCompleted && !nextLesson && !nextChapter && (
+            }
+          </button>
+        ) : (
+          /* CASE 3: Materi terakhir, tidak ada chapter berikutnya → hanya "Tandai Selesai" */
+          <button
+            onClick={handleMarkDone}
+            disabled={loading || effectivelyCompleted}
+            className={`w-full py-3 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-all duration-200 disabled:opacity-60 ${
+              effectivelyCompleted
+                ? 'bg-green-500/20 border border-green-500/30 text-green-400 cursor-default'
+                : 'bg-orange-500 hover:bg-orange-400 text-black hover:shadow-lg hover:shadow-orange-500/30'
+            }`}
+          >
+            {loading
+              ? <><div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />Menyimpan...</>
+              : <><CheckCircle className="w-4 h-4" />{effectivelyCompleted ? 'Selesai Dipelajari' : 'Tandai Selesai'}</>
+            }
+          </button>
+        )}
+
+        {effectivelyCompleted && !nextLesson && !nextChapter && (
           <p className="text-center text-green-400 text-xs font-semibold">🎉 Lo udah selesaiin semua materi!</p>
         )}
       </div>
@@ -850,6 +889,7 @@ const LessonView = ({ lesson, isCompleted, onComplete, onBack, nextLesson, onNex
 
 // ── Completion Feedback Modal ─────────────────────────────────────────────────
 const CHAPTER_NAMES = {
+  0: 'Introduction',
   1: 'Mindset', 2: 'Nutrisi', 3: 'Masak',
   4: 'Build Your Muscle', 5: 'Workout Program', 6: 'Final',
 };
@@ -869,13 +909,12 @@ const ANSWER_OPTIONS = [
   { value: 'Sangat Suka',       emoji: '🤩', color: 'border-emerald-400/50 bg-emerald-500/10 text-emerald-400' },
 ];
 
-const CompletionFeedbackModal = ({ isOpen, onClose, userId, chapterId }) => {
+const CompletionFeedbackModal = ({ isOpen, onClose, userId, chapterId, onFeedbackDone }) => {
   const [answers, setAnswers] = useState({});
   const [comment, setComment] = useState('');
   const [submitted, setSubmitted] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  // Reset form when a new chapter triggers the modal
   useEffect(() => {
     if (isOpen) { setAnswers({}); setComment(''); setSubmitted(false); }
   }, [isOpen, chapterId]);
@@ -889,7 +928,7 @@ const CompletionFeedbackModal = ({ isOpen, onClose, userId, chapterId }) => {
   const allAnswered = FEEDBACK_QUESTIONS.every(q => answers[q.key]);
 
   const markDone = () => {
-    if (userId && chapterId) {
+    if (userId && chapterId !== null) {
       localStorage.setItem(`feedback_done_${userId}_ch${chapterId}`, '1');
     }
   };
@@ -906,8 +945,10 @@ const CompletionFeedbackModal = ({ isOpen, onClose, userId, chapterId }) => {
   };
 
   const handleClose = () => {
-    markDone(); // dismiss without submitting = also mark done so it won't re-appear
+    markDone();
     onClose();
+    // Callback setelah feedback selesai (lanjutkan navigasi ke chapter berikutnya)
+    if (onFeedbackDone) onFeedbackDone();
   };
 
   return (
@@ -915,7 +956,7 @@ const CompletionFeedbackModal = ({ isOpen, onClose, userId, chapterId }) => {
       {isOpen && (
         <>
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/75 backdrop-blur-sm z-50" onClick={submitted ? onClose : undefined} />
+            className="fixed inset-0 bg-black/75 backdrop-blur-sm z-50" />
 
           <motion.div initial={{ opacity: 0, scale: 0.92, y: 30 }} animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.92, y: 30 }} transition={{ duration: 0.3, ease: [0.25, 0.46, 0.45, 0.94] }}
@@ -931,13 +972,12 @@ const CompletionFeedbackModal = ({ isOpen, onClose, userId, chapterId }) => {
                   </motion.div>
                   <h3 className="text-white font-black text-xl mb-2" style={{ fontFamily: 'Montserrat, sans-serif' }}>Terima kasih!</h3>
                   <p className="text-neutral-400 text-sm mb-6">Feedback kamu sangat berarti buat kami. Terus semangat menjalankan 3 pilar!</p>
-                  <button onClick={onClose} className="bg-orange-500 hover:bg-orange-400 text-black font-bold px-8 py-3 rounded-xl transition-all">
-                    Tutup
+                  <button onClick={handleClose} className="bg-orange-500 hover:bg-orange-400 text-black font-bold px-8 py-3 rounded-xl transition-all">
+                    Lanjut ke Chapter Berikutnya
                   </button>
                 </div>
               ) : (
                 <>
-                  {/* Header */}
                   <div className="p-6 border-b border-white/5 text-center">
                     <div className="text-4xl mb-3">🏆</div>
                     <h3 className="text-white font-black text-xl mb-1" style={{ fontFamily: 'Montserrat, sans-serif' }}>
@@ -949,7 +989,6 @@ const CompletionFeedbackModal = ({ isOpen, onClose, userId, chapterId }) => {
                     <p className="text-neutral-400 text-sm">Luangkan 1 menit untuk kasih feedback kamu.</p>
                   </div>
 
-                  {/* Questions */}
                   <div className="p-6 space-y-6">
                     {FEEDBACK_QUESTIONS.map((q, qi) => (
                       <div key={q.key}>
@@ -975,7 +1014,6 @@ const CompletionFeedbackModal = ({ isOpen, onClose, userId, chapterId }) => {
                       </div>
                     ))}
 
-                    {/* Comment */}
                     <div>
                       <p className="text-neutral-400 text-sm mb-2">Ada yang ingin ditambahkan? <span className="text-neutral-600">(opsional)</span></p>
                       <textarea
@@ -987,11 +1025,10 @@ const CompletionFeedbackModal = ({ isOpen, onClose, userId, chapterId }) => {
                       />
                     </div>
 
-                    {/* Actions */}
                     <div className="flex gap-3">
                       <button onClick={handleClose}
                         className="flex-1 py-3 rounded-xl border border-white/10 text-neutral-400 hover:text-white hover:border-white/20 text-sm font-semibold transition-all">
-                        Nanti saja
+                        Lewati
                       </button>
                       <button onClick={handleSubmit} disabled={!allAnswered || loading}
                         className="flex-1 flex items-center justify-center gap-2 bg-orange-500 hover:bg-orange-400 disabled:opacity-40 disabled:cursor-not-allowed text-black font-bold py-3 rounded-xl transition-all text-sm">
@@ -1019,6 +1056,7 @@ const ChapterView = ({ chapter, completedLessons, onLessonComplete, onBack, allC
   const [activeLesson, setActiveLesson] = useState(null);
   const Icon = chapter.icon;
 
+  // FIX 3: Reset activeLesson setiap chapter berubah agar isi tidak tertinggal dari chapter lama
   useEffect(() => {
     setActiveLesson(null);
   }, [chapter.id]);
@@ -1043,8 +1081,8 @@ const ChapterView = ({ chapter, completedLessons, onLessonComplete, onBack, allC
         onBack={() => setActiveLesson(null)}
         nextLesson={nextLesson}
         onNextLesson={() => setActiveLesson(nextLesson)}
-        nextChapter={nextChapter}
-        onNextChapter={() => { onGoToChapter && onGoToChapter(nextChapter); }}
+        nextChapter={!nextLesson ? nextChapter : null}  // Hanya pass nextChapter kalau ini lesson terakhir
+        onNextChapter={() => { onGoToChapter && onGoToChapter(chapter, nextChapter); }}
       />
     );
   }
@@ -1095,12 +1133,11 @@ const ChapterView = ({ chapter, completedLessons, onLessonComplete, onBack, allC
         })}
       </div>
 
-      {/* Bottom CTA — next chapter if all lessons done, or first incomplete lesson */}
       <div className="mt-6 pt-4 border-t border-white/5">
         {chapterPct === 100 ? (
           nextChapter ? (
             <button
-              onClick={() => onGoToChapter && onGoToChapter(nextChapter)}
+              onClick={() => onGoToChapter && onGoToChapter(chapter, nextChapter)}
               className="w-full py-3.5 rounded-xl font-bold text-sm flex items-center justify-center gap-2 bg-orange-500 hover:bg-orange-400 text-black hover:shadow-lg hover:shadow-orange-500/30 transition-all duration-200"
             >
               Lanjut ke Chapter {nextChapter.id}: {nextChapter.title}
@@ -1124,7 +1161,6 @@ const ChapterView = ({ chapter, completedLessons, onLessonComplete, onBack, allC
           })()
         )}
       </div>
-
     </motion.div>
   );
 };
@@ -1209,13 +1245,7 @@ const BonusView = ({ renderBlocks }) => {
             <img
               src="/cara-duplicate-wo-tracker.webp"
               alt="Cara duplicate workout tracker"
-              style={{
-                display: 'block',
-                width: '100%',
-                height: 'auto',
-                borderRadius: '0.75rem',
-                maxWidth: '100%',
-              }}
+              style={{ display: 'block', width: '100%', height: 'auto', borderRadius: '0.75rem', maxWidth: '100%' }}
             />
           </div>
         </div>
@@ -1225,7 +1255,6 @@ const BonusView = ({ renderBlocks }) => {
 
   return (
     <motion.div key="bonus-home" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.3 }}>
-      {/* Hero */}
       <div className="relative bg-gradient-to-br from-orange-500/15 via-yellow-500/5 to-transparent border border-orange-500/20 rounded-2xl p-7 mb-8 overflow-hidden">
         <div className="absolute top-0 right-0 w-48 h-48 bg-orange-500/5 rounded-full blur-3xl pointer-events-none" />
         <p className="text-orange-400 text-xs font-bold uppercase tracking-widest mb-2">Exclusive Member Only</p>
@@ -1237,7 +1266,6 @@ const BonusView = ({ renderBlocks }) => {
         </p>
       </div>
 
-      {/* Cards */}
       <div className="grid gap-5 sm:grid-cols-1 lg:grid-cols-3">
         {BONUSES.map((b, i) => {
           const isLesson = b.type === 'lesson';
@@ -1251,20 +1279,17 @@ const BonusView = ({ renderBlocks }) => {
               whileHover={{ y: -5 }} className="h-full">
               <Tag {...extraProps}
                 className={`w-full h-full group bg-gradient-to-br ${b.gradient} border ${b.border} rounded-2xl p-6 flex flex-col gap-5 transition-all duration-200 cursor-pointer text-left`}>
-                {/* Icon + label */}
                 <div className="flex items-start justify-between">
                   <div className={`w-14 h-14 rounded-2xl ${b.iconBg} border flex items-center justify-center text-3xl`}>
                     {b.emoji}
                   </div>
                   <span className={`text-[10px] font-bold uppercase tracking-widest px-2.5 py-1 rounded-full ${b.iconBg} border ${b.accent}`}>{b.label}</span>
                 </div>
-                {/* Text */}
                 <div className="flex-1">
                   <p className="text-white font-bold text-base leading-snug">{b.title}</p>
                   <p className={`text-xs font-semibold mt-0.5 ${b.accent}`}>{b.subtitle}</p>
                   <p className="text-neutral-400 text-sm mt-3 leading-relaxed">{b.description}</p>
                 </div>
-                {/* CTA */}
                 <div className={`flex items-center gap-2 text-sm font-bold ${b.accent} group-hover:gap-3 transition-all`}>
                   {isLesson ? <ChevronRight className="w-4 h-4 flex-shrink-0" /> : <ExternalLink className="w-4 h-4 flex-shrink-0" />}
                   {b.cta}
@@ -1286,10 +1311,16 @@ export default function Dashboard() {
   const [completedLessons, setCompletedLessons] = useState([]);
   const [overallProgress, setOverallProgress] = useState(0);
   const [chapterProgress, setChapterProgress] = useState({});
-  const [feedbackChapterId, setFeedbackChapterId] = useState(null);
-  const [activePage, setActivePage] = useState(null); // null | 'bonus'
+  const [activePage, setActivePage] = useState(null);
 
-  const [user, setUser] = useState(() => { try { return JSON.parse((localStorage.getItem('user') || sessionStorage.getItem('user'))); } catch { return null; } });
+  // FIX 4: Feedback state — menyimpan {chapterId, pendingNextChapter} 
+  // Feedback muncul saat perpindahan CHAPTER (bukan materi), setelah lesson terakhir selesai
+  const [feedbackState, setFeedbackState] = useState(null); // null | { chapterId, nextChapter }
+
+  const [user, setUser] = useState(() => {
+    try { return JSON.parse((localStorage.getItem('user') || sessionStorage.getItem('user'))); }
+    catch { return null; }
+  });
 
   const fetchProgress = useCallback(async (userId) => {
     try {
@@ -1297,16 +1328,6 @@ export default function Dashboard() {
       setCompletedLessons(data.completed_lessons);
       setOverallProgress(data.overall_progress);
       setChapterProgress(data.chapter_progress);
-      // Show feedback popup for the first completed chapter without feedback yet
-      if (userId) {
-        for (const [chId, pct] of Object.entries(data.chapter_progress)) {
-          const chNum = parseInt(chId);
-          if (chNum > 0 && pct >= 100 && !localStorage.getItem(`feedback_done_${userId}_ch${chNum}`)) {
-            setFeedbackChapterId(chNum);
-            break;
-          }
-        }
-      }
     } catch {}
   }, []);
 
@@ -1321,7 +1342,6 @@ export default function Dashboard() {
     });
   }, [navigate, fetchProgress]);
 
-  // Fix mobile back button — intercept popstate so pressing back closes chapter instead of leaving dashboard
   useEffect(() => {
     if (activeChapter) {
       window.history.pushState({ inChapter: true }, '');
@@ -1332,7 +1352,6 @@ export default function Dashboard() {
     const handler = () => {
       if (activeChapter) {
         setActiveChapter(null);
-        // Re-push so pressing back again doesn't leave dashboard unexpectedly
         window.history.pushState({ dashboard: true }, '');
       }
     };
@@ -1352,8 +1371,6 @@ export default function Dashboard() {
         newCompleted = [...completedLessons, lessonId];
       }
       setCompletedLessons(newCompleted);
-      // Update chapter and overall progress optimistically — avoids race conditions
-      // caused by a background fetchProgress overwriting state with stale server data.
       const updatedChapterProgress = { ...chapterProgress };
       const chLessons = chapters.find(c => c.id === chapterId)?.lessons || [];
       const chDone = chLessons.filter(l => newCompleted.includes(l.id)).length;
@@ -1364,6 +1381,35 @@ export default function Dashboard() {
       setOverallProgress(TOTAL_LESSONS > 0 ? Math.round((newCompleted.length / TOTAL_LESSONS) * 1000) / 10 : 0);
     } catch {}
   };
+
+  // FIX 4 (lanjutan): Handler saat pindah chapter — tampilkan feedback dulu,
+  // setelah feedback selesai baru navigasi ke chapter berikutnya
+  const handleGoToChapter = useCallback((fromChapter, toChapter) => {
+    const userId = user?.id;
+    const fromChapterId = fromChapter?.id;
+
+    // Cek apakah feedback untuk chapter ini sudah pernah diisi
+    const feedbackAlreadyDone = fromChapterId !== undefined && fromChapterId !== null
+      && localStorage.getItem(`feedback_done_${userId}_ch${fromChapterId}`);
+
+    if (!feedbackAlreadyDone && fromChapterId !== undefined && fromChapterId !== null) {
+      // Tampilkan modal feedback; navigasi ke chapter berikutnya setelah modal ditutup
+      setFeedbackState({ chapterId: fromChapterId, nextChapter: toChapter });
+    } else {
+      // Langsung navigasi
+      setActiveChapter(toChapter);
+      setActivePage(null);
+    }
+  }, [user]);
+
+  // Dipanggil setelah user tutup/submit feedback → lanjut ke chapter berikutnya
+  const handleFeedbackDone = useCallback(() => {
+    if (feedbackState?.nextChapter) {
+      setActiveChapter(feedbackState.nextChapter);
+      setActivePage(null);
+    }
+    setFeedbackState(null);
+  }, [feedbackState]);
 
   const handleLogout = () => {
     localStorage.removeItem('token');
@@ -1379,7 +1425,6 @@ export default function Dashboard() {
 
       {/* Sidebar */}
       <aside className={`fixed top-0 left-0 h-full w-72 bg-[#111111] border-r border-white/5 z-40 flex flex-col transition-transform duration-300 lg:translate-x-0 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
-        {/* Logo */}
         <div className="p-5 border-b border-white/5">
           <div className="flex items-center gap-2.5">
             <div className="bg-orange-500 p-1.5 rounded-lg"><Dumbbell className="w-4 h-4 text-black" /></div>
@@ -1390,7 +1435,6 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* User + Overall Progress */}
         {user && (
           <div className="px-5 py-4 border-b border-white/5">
             <div className="flex items-center gap-3 mb-4">
@@ -1415,7 +1459,6 @@ export default function Dashboard() {
           </div>
         )}
 
-        {/* Chapter List */}
         <nav className="flex-1 overflow-y-auto py-4 px-3">
           <p className="text-neutral-600 text-xs font-semibold uppercase tracking-widest px-3 mb-3">12 Week Journey</p>
           {chapters.map((ch) => {
@@ -1444,7 +1487,6 @@ export default function Dashboard() {
           })}
         </nav>
 
-        {/* Bonus Menu */}
         <div className="px-3 pb-2">
           <div className="border-t border-white/5 pt-3 mb-1">
             <p className="text-neutral-600 text-xs font-semibold uppercase tracking-widest px-3 mb-2">Bonus</p>
@@ -1461,7 +1503,6 @@ export default function Dashboard() {
           </button>
         </div>
 
-        {/* Bottom */}
         <div className="p-4 border-t border-white/5 space-y-1">
           {user?.is_admin && (
             <button onClick={() => navigate('/admin')} className="w-full flex items-center gap-2.5 px-3 py-2.5 text-orange-400 hover:text-orange-300 hover:bg-orange-500/10 rounded-xl transition-all text-sm font-semibold">
@@ -1494,7 +1535,16 @@ export default function Dashboard() {
           ) : (
             <AnimatePresence mode="wait">
               {activePage === 'bonus' ? (
-                <BonusView key="bonus" renderBlocks={(blocks) => blocks.map((block, i) => { const inlineHtml = (t) => (t || '').replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>').replace(/\*(.+?)\*/g, '<em>$1</em>'); switch (block.type) { case 'image': return <img key={i} src={block.src} alt={block.alt || ''} className="w-full rounded-xl object-cover max-h-72 mb-4" />; case 'callout': return <div key={i} className="flex gap-3 bg-white/5 border border-white/10 rounded-xl px-4 py-3 my-4"><span className="text-lg flex-shrink-0">{block.icon}</span><span className="text-neutral-300 text-sm leading-relaxed" dangerouslySetInnerHTML={{ __html: inlineHtml(block.text) }} /></div>; case 'video_embed': return <div key={i} className="my-6 rounded-xl overflow-hidden aspect-video bg-black"><iframe src={block.src} className="w-full h-full" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowFullScreen title="video" /></div>; case 'link_card': return <a key={i} href={block.href} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl px-4 py-3 my-2 transition-colors group"><span className="text-neutral-200 text-sm flex-1">{block.text}</span><ChevronRight className="w-4 h-4 text-neutral-500 group-hover:text-white transition-colors flex-shrink-0" /></a>; default: return null; } })} />
+                <BonusView key="bonus" renderBlocks={(blocks) => blocks.map((block, i) => {
+                  const inlineHtml = (t) => (t || '').replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>').replace(/\*(.+?)\*/g, '<em>$1</em>');
+                  switch (block.type) {
+                    case 'image': return <img key={i} src={block.src} alt={block.alt || ''} className="w-full rounded-xl object-cover max-h-72 mb-4" />;
+                    case 'callout': return <div key={i} className="flex gap-3 bg-white/5 border border-white/10 rounded-xl px-4 py-3 my-4"><span className="text-lg flex-shrink-0">{block.icon}</span><span className="text-neutral-300 text-sm leading-relaxed" dangerouslySetInnerHTML={{ __html: inlineHtml(block.text) }} /></div>;
+                    case 'video_embed': return <div key={i} className="my-6 rounded-xl overflow-hidden aspect-video bg-black"><iframe src={block.src} className="w-full h-full" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowFullScreen title="video" /></div>;
+                    case 'link_card': return <a key={i} href={block.href} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl px-4 py-3 my-2 transition-colors group"><span className="text-neutral-200 text-sm flex-1">{block.text}</span><ChevronRight className="w-4 h-4 text-neutral-500 group-hover:text-white transition-colors flex-shrink-0" /></a>;
+                    default: return null;
+                  }
+                })} />
               ) : activeChapter ? (
                 <ChapterView
                   key={activeChapter.id}
@@ -1503,11 +1553,10 @@ export default function Dashboard() {
                   onLessonComplete={handleLessonComplete}
                   onBack={() => setActiveChapter(null)}
                   allChapters={chapters}
-                  onGoToChapter={(ch) => { setActiveChapter(ch); setActivePage(null); }}
+                  onGoToChapter={handleGoToChapter}
                 />
               ) : (
                 <motion.div key="home" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.3 }}>
-                  {/* Overall Progress Card */}
                   <div className="bg-gradient-to-br from-orange-500/15 to-orange-500/5 border border-orange-500/20 rounded-2xl p-6 mb-8">
                     <div className="flex items-center justify-between mb-4">
                       <div>
@@ -1525,7 +1574,6 @@ export default function Dashboard() {
                     <p className="text-neutral-500 text-xs mt-2">{completedLessons.length} dari {TOTAL_LESSONS} pelajaran selesai</p>
                   </div>
 
-                  {/* Chapter Grid */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
                     {chapters.map((ch) => {
                       const Icon = ch.icon;
@@ -1562,11 +1610,13 @@ export default function Dashboard() {
         </main>
       </div>
 
+      {/* FIX 4: Feedback modal hanya muncul saat perpindahan CHAPTER, bukan perpindahan materi */}
       <CompletionFeedbackModal
-        isOpen={feedbackChapterId !== null}
-        onClose={() => setFeedbackChapterId(null)}
+        isOpen={feedbackState !== null}
+        onClose={() => setFeedbackState(null)}
         userId={user?.id}
-        chapterId={feedbackChapterId}
+        chapterId={feedbackState?.chapterId ?? null}
+        onFeedbackDone={handleFeedbackDone}
       />
     </div>
   );
