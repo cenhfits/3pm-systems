@@ -81,6 +81,11 @@ def _otp_email_html(name: str, otp: str) -> str:
 </html>
 """
 
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(message)s",
+)
+
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env', override=True)
 
