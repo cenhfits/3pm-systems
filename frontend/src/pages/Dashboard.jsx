@@ -1019,6 +1019,10 @@ const ChapterView = ({ chapter, completedLessons, onLessonComplete, onBack, allC
   const [activeLesson, setActiveLesson] = useState(null);
   const Icon = chapter.icon;
 
+  useEffect(() => {
+    setActiveLesson(null);
+  }, [chapter.id]);
+
   const chapterDone = chapter.lessons.filter(l => completedLessons.includes(l.id)).length;
   const chapterPct = chapter.lessons.length > 0 ? Math.round((chapterDone / chapter.lessons.length) * 100) : 0;
 
@@ -1040,7 +1044,7 @@ const ChapterView = ({ chapter, completedLessons, onLessonComplete, onBack, allC
         nextLesson={nextLesson}
         onNextLesson={() => setActiveLesson(nextLesson)}
         nextChapter={nextChapter}
-        onNextChapter={() => { setActiveLesson(null); onGoToChapter && onGoToChapter(nextChapter); }}
+        onNextChapter={() => { onGoToChapter && onGoToChapter(nextChapter); }}
       />
     );
   }
