@@ -1339,14 +1339,25 @@ export default function Dashboard() {
   const handleLessonComplete = async (chapterId, lessonId) => {
     const isAlready = completedLessons.includes(lessonId);
     try {
+      let newCompleted;
       if (isAlready) {
         await api.delete('/api/progress/uncomplete', { data: { chapter_id: chapterId, lesson_id: lessonId } });
-        setCompletedLessons(prev => prev.filter(l => l !== lessonId));
+        newCompleted = completedLessons.filter(l => l !== lessonId);
       } else {
         await api.post('/api/progress/complete', { chapter_id: chapterId, lesson_id: lessonId });
-        setCompletedLessons(prev => [...prev, lessonId]);
+        newCompleted = [...completedLessons, lessonId];
       }
-      fetchProgress(user?.id);
+      setCompletedLessons(newCompleted);
+      // Update chapter and overall progress optimistically — avoids race conditions
+      // caused by a background fetchProgress overwriting state with stale server data.
+      const updatedChapterProgress = { ...chapterProgress };
+      const chLessons = chapters.find(c => c.id === chapterId)?.lessons || [];
+      const chDone = chLessons.filter(l => newCompleted.includes(l.id)).length;
+      updatedChapterProgress[String(chapterId)] = chLessons.length > 0
+        ? Math.round((chDone / chLessons.length) * 1000) / 10
+        : 0;
+      setChapterProgress(updatedChapterProgress);
+      setOverallProgress(TOTAL_LESSONS > 0 ? Math.round((newCompleted.length / TOTAL_LESSONS) * 1000) / 10 : 0);
     } catch {}
   };
 
