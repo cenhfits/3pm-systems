@@ -1,0 +1,340 @@
+/* Landing Page Specific Styles */
+
+/* Smooth scrolling for entire page */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Marquee urgency bar */
+.urgency-bar {
+  background: #F97316;
+  padding: 0.625rem 0;
+}
+
+@media (min-width: 640px) {
+  .urgency-bar {
+    padding: 0.75rem 0;
+  }
+}
+
+.urgency-bar .marquee-text {
+  color: #000;
+  font-weight: 700;
+  text-transform: uppercase;
+  font-size: 0.75rem;
+  letter-spacing: 0.08em;
+}
+
+@media (min-width: 640px) {
+  .urgency-bar .marquee-text {
+    font-size: 0.875rem;
+    letter-spacing: 0.1em;
+  }
+}
+
+/* Hero section */
+.hero-section {
+  position: relative;
+  overflow: hidden;
+}
+
+.hero-overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to right, #111111 0%, rgba(17, 17, 17, 0.9) 50%, rgba(17, 17, 17, 0.7) 100%);
+}
+
+/* Pain point cards - Enhanced hover */
+.pain-card {
+  background: #1A1A1A;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 1rem;
+  transition: all 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+.pain-card:hover {
+  border-color: rgba(249, 115, 22, 0.4);
+  background: #1F1F1F;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.3);
+}
+
+/* Pillar cards - Enhanced */
+.pillar-card {
+  background: #1A1A1A;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 1rem;
+  overflow: hidden;
+  transition: all 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+.pillar-card:hover {
+  border-color: rgba(249, 115, 22, 0.4);
+  transform: translateY(-6px);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
+}
+
+.pillar-card img {
+  width: 100%;
+  aspect-ratio: 16/9;
+  object-fit: cover;
+  transition: transform 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+.pillar-card:hover img {
+  transform: scale(1.05);
+}
+
+/* Before/After section */
+.before-after-container {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+}
+
+@media (min-width: 640px) {
+  .before-after-container {
+    gap: 1rem;
+  }
+}
+
+.before-after-card {
+  position: relative;
+  overflow: hidden;
+  border-radius: 0.75rem;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  transition: all 0.3s ease;
+}
+
+.before-after-card:hover {
+  border-color: rgba(249, 115, 22, 0.3);
+}
+
+.before-after-card img {
+  width: 100%;
+  aspect-ratio: 3/4;
+  object-fit: cover;
+  transition: transform 0.5s ease;
+}
+
+.before-after-card:hover img {
+  transform: scale(1.02);
+}
+
+.before-after-label {
+  position: absolute;
+  bottom: 0.75rem;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(17, 17, 17, 0.9);
+  backdrop-filter: blur(8px);
+  padding: 0.375rem 0.75rem;
+  border-radius: 9999px;
+  font-weight: 700;
+  font-size: 0.625rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  white-space: nowrap;
+}
+
+@media (min-width: 640px) {
+  .before-after-label {
+    bottom: 1rem;
+    padding: 0.5rem 1rem;
+    font-size: 0.75rem;
+    letter-spacing: 0.1em;
+  }
+}
+
+/* Value stack table */
+.value-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.value-table th,
+.value-table td {
+  padding: 0.875rem 0.75rem;
+  text-align: left;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+@media (min-width: 640px) {
+  .value-table th,
+  .value-table td {
+    padding: 1rem;
+  }
+}
+
+.value-table th {
+  color: #A3A3A3;
+  font-weight: 600;
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+@media (min-width: 640px) {
+  .value-table th {
+    font-size: 0.75rem;
+  }
+}
+
+.value-table tr:last-child td {
+  border-bottom: none;
+}
+
+/* Pricing card - Enhanced glow */
+.pricing-card {
+  background: #1A1A1A;
+  border: 1px solid #F97316;
+  border-radius: 1.25rem;
+  padding: 1.5rem;
+  position: relative;
+  overflow: hidden;
+}
+
+@media (min-width: 640px) {
+  .pricing-card {
+    padding: 2rem;
+  }
+}
+
+.pricing-card::before {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  background: linear-gradient(135deg, #F97316, transparent, #F97316);
+  border-radius: 1.25rem;
+  z-index: -1;
+  opacity: 0.3;
+}
+
+/* FAQ accordion custom styles - Enhanced */
+.faq-item {
+  background: #1A1A1A;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 0.875rem;
+  margin-bottom: 0.625rem;
+  overflow: hidden;
+  transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+.faq-item:hover {
+  border-left: 3px solid #F97316;
+  background: #1F1F1F;
+}
+
+.faq-item[data-state="open"] {
+  border-left: 3px solid #F97316;
+  background: #1F1F1F;
+}
+
+/* CTA button styles - Enhanced */
+.cta-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: #F97316;
+  color: #000;
+  font-family: 'Montserrat', sans-serif;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 0.875rem 1.5rem;
+  border-radius: 0.625rem;
+  transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  cursor: pointer;
+  border: none;
+  text-decoration: none;
+  font-size: 0.875rem;
+}
+
+@media (min-width: 640px) {
+  .cta-button {
+    padding: 1rem 2rem;
+    letter-spacing: 0.05em;
+    font-size: 1rem;
+  }
+}
+
+.cta-button:hover {
+  background: #EA580C;
+  transform: translateY(-2px);
+  box-shadow: 0 10px 30px rgba(249, 115, 22, 0.35);
+}
+
+.cta-button:active {
+  transform: translateY(0);
+}
+
+.cta-button-large {
+  padding: 1rem 2rem;
+  font-size: 0.9375rem;
+}
+
+@media (min-width: 640px) {
+  .cta-button-large {
+    padding: 1.25rem 3rem;
+    font-size: 1.125rem;
+  }
+}
+
+/* Navigation styles */
+.nav-link {
+  color: #A3A3A3;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  text-decoration: none;
+  position: relative;
+}
+
+.nav-link:hover {
+  color: #F97316;
+}
+
+.nav-link::after {
+  content: '';
+  position: absolute;
+  bottom: -4px;
+  left: 0;
+  width: 0;
+  height: 2px;
+  background: #F97316;
+  transition: width 0.3s ease;
+}
+
+.nav-link:hover::after {
+  width: 100%;
+}
+
+/* Glass navigation */
+.glass-nav {
+  background: rgba(17, 17, 17, 0.85);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+/* Section divider */
+.section-divider {
+  height: 1px;
+  background: linear-gradient(to right, transparent, rgba(249, 115, 22, 0.3), transparent);
+}
+
+/* Gradient text - simpler version */
+.gradient-text {
+  color: #F97316;
+}
+
+/* Mobile touch feedback */
+@media (hover: none) {
+  .pain-card:active,
+  .pillar-card:active,
+  .faq-item:active {
+    transform: scale(0.98);
+  }
+  
+  .cta-button:active {
+    transform: scale(0.97);
+  }
+}

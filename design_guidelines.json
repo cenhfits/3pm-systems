@@ -1,0 +1,156 @@
+{
+  "project_metadata": {
+    "name": "3 Pillar Muscle System Landing Page",
+    "domain": "Fitness, Gym, Transformation",
+    "target_audience": "Indonesian gym beginners",
+    "theme": "Dark",
+    "archetype": "2 (Performance Pro)"
+  },
+  "design_system": {
+    "colors": {
+      "background_primary": "#111111",
+      "background_secondary": "#1A1A1A",
+      "brand_primary": "#F97316",
+      "brand_primary_hover": "#EA580C",
+      "text_primary": "#FFFFFF",
+      "text_secondary": "#A3A3A3",
+      "border": "#333333",
+      "success": "#22C55E",
+      "error": "#EF4444"
+    },
+    "typography": {
+      "heading_font": "Poppins",
+      "body_font": "Inter",
+      "h1": "text-5xl sm:text-6xl lg:text-7xl font-black tracking-tighter leading-none text-white",
+      "h2": "text-3xl sm:text-4xl lg:text-5xl font-bold tracking-tight text-white",
+      "h3": "text-xl sm:text-2xl font-bold tracking-tight text-white",
+      "body": "text-base sm:text-lg font-medium tracking-normal text-neutral-400",
+      "label": "text-xs sm:text-sm font-bold uppercase tracking-[0.2em] text-orange-500"
+    },
+    "spacing_and_layout": {
+      "section_padding": "py-20 md:py-32",
+      "container": "max-w-7xl mx-auto px-4 sm:px-6 lg:px-8",
+      "grid_bento": "grid grid-cols-1 md:grid-cols-3 gap-6 lg:gap-8",
+      "grid_tetris": "grid grid-cols-1 md:grid-cols-12 gap-6 lg:gap-8"
+    },
+    "components": {
+      "buttons": {
+        "primary": "inline-flex items-center justify-center bg-orange-500 hover:bg-orange-600 text-black font-bold uppercase tracking-wide px-8 py-4 rounded-md transition-colors duration-200",
+        "secondary": "inline-flex items-center justify-center border border-orange-500 text-orange-500 hover:bg-orange-500/10 font-bold uppercase tracking-wide px-8 py-4 rounded-md transition-colors duration-200"
+      },
+      "cards": {
+        "tactical_bento": "bg-[#1A1A1A] border border-white/10 rounded-lg p-6 md:p-8 flex flex-col h-full hover:-translate-y-1 hover:border-orange-500/50 transition-all duration-300"
+      },
+      "surfaces": {
+        "glass_nav": "bg-[#111111]/80 backdrop-blur-xl border-b border-white/10"
+      }
+    },
+    "animations": {
+      "marquee": "react-fast-marquee for urgency bar",
+      "hover_states": "subtle lift (-translate-y-1) and border color change for cards",
+      "smooth_scroll": "lenis recommended for overall page scroll, native smooth scroll for anchor links"
+    }
+  },
+  "media": {
+    "images": [
+      {
+        "id": "hero_bg",
+        "url": "https://images.unsplash.com/photo-1770628086880-db5ab893c420?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA1NjZ8MHwxfHNlYXJjaHwyfHxtdXNjdWxhciUyMG1hbiUyMGd5bSUyMHdvcmtvdXQlMjBkYXJrfGVufDB8fHx8MTc3NTkxMjY4NHww&ixlib=rb-4.1.0&q=85",
+        "description": "Muscular man gym workout dark - Used for Hero Section background or split",
+        "overlay_rules": "bg-gradient-to-r from-[#111111] via-[#111111]/80 to-transparent"
+      },
+      {
+        "id": "nutrition_pillar",
+        "url": "https://images.unsplash.com/photo-1606859191214-25806e8e2423?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NTYxODd8MHwxfHNlYXJjaHwxfHxoZWFsdGh5JTIwbWVhbCUyMHByZXAlMjBudXRyaXRpb258ZW58MHx8fHwxNzc1OTEyNjg0fDA&ixlib=rb-4.1.0&q=85",
+        "description": "Healthy meal prep nutrition - Used for Nutrition Pillar card",
+        "aspect_ratio": "aspect-video"
+      },
+      {
+        "id": "sleep_pillar",
+        "url": "https://images.pexels.com/photos/7641345/pexels-photo-7641345.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940",
+        "description": "Man sleeping dark bedroom - Used for Sleep Pillar card",
+        "aspect_ratio": "aspect-video"
+      },
+      {
+        "id": "before_photo",
+        "url": "https://images.unsplash.com/photo-1584952811178-17383f34d7f4?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjY2NjV8MHwxfHNlYXJjaHwyfHxmaXRuZXNzJTIwdHJhbnNmb3JtYXRpb24lMjBiZWZvcmUlMjBhZnRlcnxlbnwwfHx8fDE3NzU5MTI3MTV8MA&ixlib=rb-4.1.0&q=85",
+        "description": "Fitness transformation before",
+        "aspect_ratio": "aspect-square"
+      },
+      {
+        "id": "after_photo",
+        "url": "https://images.unsplash.com/photo-1608054604374-999be726cf9b?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjY2NjV8MHwxfHNlYXJjaHwxfHxmaXRuZXNzJTIwdHJhbnNmb3JtYXRpb24lMjBiZWZvcmUlMjBhZnRlcnxlbnwwfHx8fDE3NzU5MTI3MTV8MA&ixlib=rb-4.1.0&q=85",
+        "description": "Fitness transformation after",
+        "aspect_ratio": "aspect-square"
+      }
+    ]
+  },
+  "sections": [
+    {
+      "name": "Urgency Bar",
+      "type": "Marquee",
+      "instructions": "Use react-fast-marquee. Background #F97316 (orange-500). Text is Black, uppercase, font-bold. '🔥 PROMO EARLY BIRD: HANYA RP 275.000 (DARI RP 950.000) • SLOT TERBATAS 🔥'. Make it fast and kinetic.",
+      "data_testid": "urgency-bar-marquee"
+    },
+    {
+      "name": "Navigation",
+      "type": "Sticky Header",
+      "instructions": "Glassmorphism nav (bg-[#111111]/80 backdrop-blur-xl). Logo text '3 PILLAR MUSCLE' in white Poppins. Links: Pilar, Hasil, Harga, FAQ. CTA Button: 'DAFTAR' (orange, small). smooth scroll to sections.",
+      "data_testid": "main-navigation"
+    },
+    {
+      "name": "Hero Section",
+      "type": "Split Layout or Background Overlaid",
+      "instructions": "Use 'hero_bg' image. Left align content. H1: 'BANGUN OTOT. HANCURKAN LEMAK. TANPA ALASAN.' with Poppins Black. Subtitle: 'Sistem 3 pilar yang dirancang khusus untuk pemula gym di Indonesia.'. Primary CTA: 'AMBIL PROMO RP 275.000 SEKARANG'. Ensure text contrast with heavy black-to-transparent gradient overlay.",
+      "data_testid": "hero-section"
+    },
+    {
+      "name": "Hook (Pain Points)",
+      "type": "Bento Grid",
+      "instructions": "H2: 'Sudah berbulan-bulan ke gym tapi badan tidak berubah?'. Grid of 3 cards. Dark cards (#1A1A1A) with 1px border border-white/10. Use red/orange accents. Pain points: 1. Latihan Asal-asalan (Tidak ada program), 2. Nutrisi Berantakan (Makan sembarangan), 3. Kurang Istirahat (Otot tidak berkembang).",
+      "data_testid": "hook-pain-points-section"
+    },
+    {
+      "name": "Storytelling",
+      "type": "Content Block",
+      "instructions": "Personal transformation story. 'Dulu saya persis seperti Anda...'. Use large quote formatting. High contrast text. Focus on the emotional shift from frustration to clarity.",
+      "data_testid": "storytelling-section"
+    },
+    {
+      "name": "The 3 Pillars",
+      "type": "Control Room Grid (Bento)",
+      "instructions": "H2: '3 Pilar Pembentuk Otot'. Layout: 3 cards side by side. Each card has an image at the top (aspect-video) and text below. Card 1: 'TRAINING' (Use an icon or dark generic gym img). Card 2: 'NUTRITION' (Use nutrition_pillar image). Card 3: 'SLEEP' (Use sleep_pillar image). High contrast, technical borders.",
+      "data_testid": "three-pillars-section"
+    },
+    {
+      "name": "Social Proof (Before/After)",
+      "type": "Split Visual",
+      "instructions": "H2: 'Hasil Nyata'. Display 'before_photo' and 'after_photo' in a stark, high-contrast layout. Don't use a slider, use a direct side-by-side split in a large card to emphasize the stark contrast. Add 'SEBELUM' and 'SESUDAH' labels.",
+      "data_testid": "social-proof-section"
+    },
+    {
+      "name": "Value Stack Table",
+      "type": "Technical Grid",
+      "instructions": "H2: 'Apa yang Anda Dapatkan'. Create a technical-looking table (border-collapse, visible grid lines). List items (e.g., Program Latihan 12 Minggu, Panduan Meal Prep, dll) with their individual values (e.g., Rp 400.000). Show Total Value crossed out (Rp 950.000). Highlight 'HANYA RP 275.000'.",
+      "data_testid": "value-stack-section"
+    },
+    {
+      "name": "Pricing / CTA",
+      "type": "Tracing Beam Card",
+      "instructions": "A highly focused pricing card. Give it a glowing 1px orange border (simulating the tracing beam effect). Price: 'Rp 275.000'. Huge CTA Button 'GABUNG SEKARANG'. Underneath CTA, add trust badges/guarantee text.",
+      "data_testid": "pricing-cta-section"
+    },
+    {
+      "name": "FAQ",
+      "type": "Accordion",
+      "instructions": "Use Shadcn Accordion. Customize to have no soft shadows. Sharp borders, bg-[#1A1A1A], hover state adds left orange border (border-l-4 border-l-orange-500).",
+      "data_testid": "faq-accordion-section"
+    }
+  ],
+  "technical_requirements": {
+    "fonts": "Google Fonts (Poppins, Inter)",
+    "icons": "lucide-react or @phosphor-icons/react (highly recommended for tactical/performance look)",
+    "styling": "Tailwind CSS + Shadcn UI (Customized for dark/tactical theme)",
+    "animations": "Framer motion for scroll reveals, react-fast-marquee for urgency bar"
+  }
+}
