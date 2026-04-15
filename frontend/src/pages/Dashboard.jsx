@@ -643,13 +643,31 @@ const LessonView = ({ lesson, isCompleted, onComplete, onBack, nextLesson, onNex
   const [error, setError] = useState('');
   const [justCompleted, setJustCompleted] = useState(false);
 
+  // ✅ FIX 1: useEffect di level komponen, bukan di dalam handler
+  useEffect(() => {
+    setJustCompleted(false);
+    setError('');
+  }, [lesson.id]);
+
   const effectivelyCompleted = isCompleted || justCompleted;
 
-  // Kasus: ada materi berikutnya di chapter yang sama — tampilkan tombol "Pelajaran Berikutnya" saja
-  // Tombol ini TIDAK perlu menandai selesai dulu (hanya navigasi)
-  const handleNextLesson = () => {
-    onNextLesson();
+  const handleNextLesson = async () => {
+    if (!isCompleted && !justCompleted) {
+      setLoading(true);
+      try {
+        await onComplete();
+        setJustCompleted(true);
+      } catch {
+        setError('Gagal menyimpan. Cek koneksi internet kamu.');
+        setLoading(false);
+        return;
+      } finally {
+        setLoading(false);
+      }
+    }
+    setTimeout(() => onNextLesson(), 0);
   };
+
 
   // Kasus: ini materi terakhir di chapter, tombol untuk tandai selesai & lanjut ke chapter berikutnya
   const handleCompleteAndAdvance = async () => {
@@ -835,14 +853,17 @@ const LessonView = ({ lesson, isCompleted, onComplete, onBack, nextLesson, onNex
         {error && <p className="text-red-400 text-xs text-center">{error}</p>}
 
         {/* CASE 1: Ada materi berikutnya di chapter yang sama → hanya tampil "Pelajaran Berikutnya" */}
-        {nextLesson ? (
-          <button
-            onClick={handleNextLesson}
-            className="w-full py-3 rounded-xl font-bold text-sm flex items-center justify-center gap-2 bg-orange-500 hover:bg-orange-400 text-black hover:shadow-lg hover:shadow-orange-500/30 transition-all duration-200"
-          >
-            <ChevronRight className="w-4 h-4" />
-            Pelajaran Berikutnya
-          </button>
+      {nextLesson ? (
+        <button
+          onClick={handleNextLesson}
+          disabled={loading}
+          className="w-full py-3 rounded-xl font-bold text-sm flex items-center justify-center gap-2 bg-orange-500 hover:bg-orange-400 text-black hover:shadow-lg hover:shadow-orange-500/30 transition-all duration-200 disabled:opacity-60"
+        >
+          {loading
+            ? <><div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />Menyimpan...</>
+            : <><ChevronRight className="w-4 h-4" />Pelajaran Berikutnya</>
+          }
+        </button>
         ) : nextChapter ? (
           /* CASE 2: Materi terakhir di chapter, ada chapter berikutnya → "Tandai Selesai & Lanjut" */
           <button
@@ -1051,6 +1072,32 @@ const CompletionFeedbackModal = ({ isOpen, onClose, userId, chapterId, onFeedbac
   );
 };
 
+const LessonProgressIcon = ({ done, type }) => (
+  <div className="relative w-9 h-9 flex-shrink-0">
+    <svg className="absolute inset-0" viewBox="0 0 36 36">
+      <circle cx="18" cy="18" r="15" fill="none"
+        stroke="rgba(255,255,255,0.08)" strokeWidth="2"/>
+      {done && (
+        <circle cx="18" cy="18" r="15" fill="none"
+          stroke="#22c55e" strokeWidth="2"
+          strokeDasharray="94.25" strokeDashoffset="0"
+          strokeLinecap="round"
+          style={{ transform: 'rotate(-90deg)', transformOrigin: 'center' }}
+        />
+      )}
+    </svg>
+    <div className={`absolute inset-1 rounded-full flex items-center justify-center
+      ${done ? 'bg-green-500/20' : type === 'video' ? 'bg-blue-500/20' : 'bg-orange-500/20'}`}>
+      {done
+        ? <CheckCircle className="w-3.5 h-3.5 text-green-400" />
+        : type === 'video'
+          ? <Play className="w-3 h-3 text-blue-400 ml-0.5" />
+          : <FileText className="w-3 h-3 text-orange-400" />
+      }
+    </div>
+  </div>
+);
+
 // ── Chapter View ──────────────────────────────────────────────────────────────
 const ChapterView = ({ chapter, completedLessons, onLessonComplete, onBack, allChapters, onGoToChapter }) => {
   const [activeLesson, setActiveLesson] = useState(null);
@@ -1115,14 +1162,7 @@ const ChapterView = ({ chapter, completedLessons, onLessonComplete, onBack, allC
           return (
             <motion.button key={lesson.id} onClick={() => setActiveLesson(lesson)} whileHover={{ x: 4 }}
               className="w-full bg-[#1A1A1A] border border-white/10 hover:border-orange-500/30 rounded-xl p-4 flex items-center gap-4 text-left transition-colors group">
-              <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${done ? 'bg-green-500/20' : lesson.type === 'video' ? 'bg-blue-500/20' : 'bg-orange-500/20'}`}>
-                {done
-                  ? <CheckCircle className="w-4 h-4 text-green-400" />
-                  : lesson.type === 'video'
-                    ? <Play className="w-3.5 h-3.5 text-blue-400 ml-0.5" />
-                    : <FileText className="w-3.5 h-3.5 text-orange-400" />
-                }
-              </div>
+              <LessonProgressIcon done={done} type={lesson.type} />
               <div className="flex-1 min-w-0">
                 <p className={`text-sm font-semibold truncate transition-colors ${done ? 'text-green-400' : 'text-white group-hover:text-orange-400'}`}>{lesson.title}</p>
                 <p className="text-neutral-500 text-xs mt-0.5">{lesson.duration}</p>
@@ -1360,17 +1400,15 @@ export default function Dashboard() {
   }, [activeChapter]);
 
   const handleLessonComplete = async (chapterId, lessonId) => {
-    const isAlready = completedLessons.includes(lessonId);
+    // ✅ FIX 2: Skip jika sudah complete — jangan toggle/uncomplete
+    if (completedLessons.includes(lessonId)) return;
+
     try {
-      let newCompleted;
-      if (isAlready) {
-        await api.delete('/api/progress/uncomplete', { data: { chapter_id: chapterId, lesson_id: lessonId } });
-        newCompleted = completedLessons.filter(l => l !== lessonId);
-      } else {
-        await api.post('/api/progress/complete', { chapter_id: chapterId, lesson_id: lessonId });
-        newCompleted = [...completedLessons, lessonId];
-      }
+      await api.post('/api/progress/complete', { chapter_id: chapterId, lesson_id: lessonId });
+
+      const newCompleted = [...completedLessons, lessonId];
       setCompletedLessons(newCompleted);
+
       const updatedChapterProgress = { ...chapterProgress };
       const chLessons = chapters.find(c => c.id === chapterId)?.lessons || [];
       const chDone = chLessons.filter(l => newCompleted.includes(l.id)).length;
@@ -1378,8 +1416,12 @@ export default function Dashboard() {
         ? Math.round((chDone / chLessons.length) * 1000) / 10
         : 0;
       setChapterProgress(updatedChapterProgress);
-      setOverallProgress(TOTAL_LESSONS > 0 ? Math.round((newCompleted.length / TOTAL_LESSONS) * 1000) / 10 : 0);
-    } catch {}
+      setOverallProgress(
+        TOTAL_LESSONS > 0 ? Math.round((newCompleted.length / TOTAL_LESSONS) * 1000) / 10 : 0
+      );
+    } catch (err) {
+      throw err;
+    }
   };
 
   // FIX 4 (lanjutan): Handler saat pindah chapter — tampilkan feedback dulu,
@@ -1388,15 +1430,15 @@ export default function Dashboard() {
     const userId = user?.id;
     const fromChapterId = fromChapter?.id;
 
-    // Cek apakah feedback untuk chapter ini sudah pernah diisi
+    // FIX 1: Chapter 0 (Introduction) tidak perlu feedback
+    const skipFeedback = fromChapterId === 0;
+
     const feedbackAlreadyDone = fromChapterId !== undefined && fromChapterId !== null
       && localStorage.getItem(`feedback_done_${userId}_ch${fromChapterId}`);
 
-    if (!feedbackAlreadyDone && fromChapterId !== undefined && fromChapterId !== null) {
-      // Tampilkan modal feedback; navigasi ke chapter berikutnya setelah modal ditutup
+    if (!skipFeedback && !feedbackAlreadyDone && fromChapterId !== undefined && fromChapterId !== null) {
       setFeedbackState({ chapterId: fromChapterId, nextChapter: toChapter });
     } else {
-      // Langsung navigasi
       setActiveChapter(toChapter);
       setActivePage(null);
     }
