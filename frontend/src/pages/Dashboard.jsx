@@ -1651,7 +1651,7 @@ export default function Dashboard() {
           )}
         </main>
       </div>
-
+      
       {/* FIX 4: Feedback modal hanya muncul saat perpindahan CHAPTER, bukan perpindahan materi */}
       <CompletionFeedbackModal
         isOpen={feedbackState !== null}
