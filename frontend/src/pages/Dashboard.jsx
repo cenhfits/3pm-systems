@@ -665,9 +665,9 @@ const LessonView = ({ lesson, isCompleted, onComplete, onBack, nextLesson, onNex
         setLoading(false);
       }
     }
+    // ❌ HAPUS useEffect yang ada di sini sebelumnya
     setTimeout(() => onNextLesson(), 0);
   };
-
 
   // Kasus: ini materi terakhir di chapter, tombol untuk tandai selesai & lanjut ke chapter berikutnya
   const handleCompleteAndAdvance = async () => {
