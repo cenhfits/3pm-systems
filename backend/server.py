@@ -894,6 +894,26 @@ app.add_middleware(
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
+@app.on_event("startup")
+async def auto_seed_chapters():
+    """Auto-seed static chapters on startup if not already in DB."""
+    try:
+        from seed_chapters import CHAPTERS
+        existing = await db.chapters.count_documents({"type": "static"})
+        if existing >= len(CHAPTERS):
+            logging.info(f"[Seed] {existing} chapters already in DB, skipping.")
+            return
+        for ch in CHAPTERS:
+            await db.chapters.update_one(
+                {"id": ch["id"], "type": "static"},
+                {"$set": ch},
+                upsert=True,
+            )
+        logging.info(f"[Seed] Auto-seeded {len(CHAPTERS)} static chapters to DB.")
+    except Exception as e:
+        logging.error(f"[Seed] Auto-seed failed: {e}")
+
+
 @app.on_event("shutdown")
 async def shutdown_db_client():
     client.close()
