@@ -2432,14 +2432,14 @@ const Footer = () => {
         </div>
 
         {/* Bottom Bar */}
-        <div className="pt-6 border-t border-white/5 flex flex-col sm:flex-row items-center justify-between gap-3">
+        <div className="pt-6 border-t border-white/5 flex flex-col sm:flex-row items-center justify-between gap-4">
           <p className="text-neutral-600 text-xs">
             © 2026 3 Pillar Train. Eat. Sleep.. All Rights Reserved.
           </p>
-          <div className="flex items-center gap-1 text-neutral-600 text-xs">
-            <span>Dibuat dengan</span>
-            <Flame className="w-3 h-3 text-orange-500/60" />
-            <span>untuk pemula gym Indonesia</span>
+          <div className="flex items-center gap-4">
+            <a href="/terms" className="text-neutral-500 hover:text-orange-400 text-xs transition-colors">Syarat &amp; Ketentuan</a>
+            <a href="/privacy" className="text-neutral-500 hover:text-blue-400 text-xs transition-colors">Kebijakan Privasi</a>
+            <a href="/refund" className="text-neutral-500 hover:text-green-400 text-xs transition-colors">Kebijakan Refund</a>
           </div>
         </div>
       </div>
