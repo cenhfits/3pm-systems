@@ -1385,31 +1385,19 @@ export default function Dashboard() {
     }).catch(() => {
       navigate('/login');
     });
-    // Fetch chapter config (visibility overrides + dynamic chapters)
-    api.get('/api/chapters-config').then(({ data }) => {
-      const { static_configs = {}, dynamic_chapters = [] } = data;
-      // Apply visibility/locked/comingSoon overrides to static chapters
-      const updated = chapters.map(ch => {
-        const cfg = static_configs[String(ch.id)];
-        if (!cfg) return ch;
-        return {
-          ...ch,
-          ...(cfg.visible === false ? { hidden: true } : {}),
-          ...(cfg.locked != null ? { locked: cfg.locked } : {}),
-          ...(cfg.coming_soon != null ? { comingSoon: cfg.coming_soon } : {}),
-        };
-      }).filter(ch => !ch.hidden);
-      // Append visible dynamic chapters
-      const dynamicMapped = dynamic_chapters
-        .filter(dc => dc.visible !== false)
-        .map(dc => ({
-          ...dc,
-          icon: ICON_MAP[dc.icon_name] || LayoutDashboard,
-          locked: dc.coming_soon || false,
-          lessons: (dc.lessons || []).filter(l => l.visible !== false),
-        }));
-      setMergedChapters([...updated, ...dynamicMapped]);
-    }).catch(() => {});
+    // Fetch all chapters from DB (full content, already seeded)
+    api.get('/api/chapters').then(({ data }) => {
+      if (!Array.isArray(data) || data.length === 0) return;
+      const mapped = data.map(ch => ({
+        ...ch,
+        icon: ch.icon || ICON_MAP[ch.icon_name] || LayoutDashboard,
+        locked: ch.locked || ch.comingSoon || false,
+        lessons: (ch.lessons || []).filter(l => l.visible !== false),
+      }));
+      setMergedChapters(mapped);
+    }).catch(() => {
+      // Fallback: keep hardcoded chapters if API fails
+    });
   }, [navigate, fetchProgress]);
 
   useEffect(() => {

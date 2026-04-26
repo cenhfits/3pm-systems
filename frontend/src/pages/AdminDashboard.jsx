@@ -789,14 +789,20 @@ const ContentBlockEditor = ({ block, idx, onChange, onDelete }) => {
           )}
           {block.type === 'callout' && (
             <>
-              <div className="flex gap-2 items-center">
-                <input value={block.icon || '💡'} onChange={e => update({ icon: e.target.value })}
-                  placeholder="💡" className="w-14 bg-[#0D0D0D] border border-white/10 rounded-lg px-2 py-2 text-center text-base focus:outline-none focus:border-orange-500 transition-colors" />
-                <span className="text-neutral-600 text-xs">← Pilih emoji untuk ikon callout</span>
+              <div className="space-y-1">
+                <label className="text-[10px] text-neutral-600 uppercase tracking-widest">Emoji ikon</label>
+                <div className="flex gap-2 items-center">
+                  <input value={block.icon || '💡'} onChange={e => update({ icon: e.target.value })}
+                    placeholder="💡" className="w-12 bg-[#0D0D0D] border border-white/10 rounded-lg px-2 py-2 text-center text-lg focus:outline-none focus:border-orange-500 transition-colors" />
+                  <span className="text-neutral-600 text-xs">Ketik atau paste emoji (contoh: ⚠️ 🎯 💡 ✅)</span>
+                </div>
               </div>
-              <textarea value={block.text || ''} onChange={e => update({ text: e.target.value })} rows={2}
-                placeholder="Tulis isi callout di sini. Mendukung **bold** dan *italic*."
-                className={inputCls + ' resize-none'} />
+              <div className="space-y-1">
+                <label className="text-[10px] text-neutral-600 uppercase tracking-widest">Isi teks</label>
+                <textarea value={block.text || ''} onChange={e => update({ text: e.target.value })} rows={2}
+                  placeholder="Tulis isi callout... (mendukung **bold** dan *italic*)"
+                  className={inputCls + ' resize-none'} />
+              </div>
             </>
           )}
           {block.type === 'image' && (
@@ -877,8 +883,8 @@ const ContentBlockEditor = ({ block, idx, onChange, onDelete }) => {
           )}
         </div>
 
-        {/* ── Preview ── */}
-        {block.type !== 'divider' && (
+        {/* Preview — only for text-based blocks, image/video already shown inline */}
+        {!['divider', 'image', 'video_embed'].includes(block.type) && (
           <div className="border-t border-white/5 pt-2">
             <p className="text-[10px] text-neutral-600 uppercase tracking-widest mb-1.5">Preview</p>
             <div className="bg-[#0D0D0D] rounded-lg p-3 border border-white/5">
@@ -1025,11 +1031,6 @@ const LessonEditor = ({ lesson, idx, onChange, onDelete }) => {
                     <iframe src={toEmbedUrl(lesson.videoUrl)} className="w-full h-full" title="lesson video" allowFullScreen />
                   </div>
                 )}
-                {lesson.type === 'video' && !lesson.videoUrl && (
-                  <div className="mb-4 h-20 rounded-lg bg-red-500/5 border border-dashed border-red-500/20 flex items-center justify-center gap-2 text-red-400/50 text-xs">
-                    <Youtube className="w-4 h-4" /> URL video belum diisi
-                  </div>
-                )}
                 {(lesson.content || []).length === 0 && lesson.type !== 'video' ? (
                   <p className="text-neutral-600 text-sm text-center py-4">Belum ada konten untuk dipreview.</p>
                 ) : (lesson.content || []).length > 0 ? (
@@ -1158,19 +1159,20 @@ const ChapterModal = ({ chapter, onClose, onSave, isNew }) => {
 };
 
 const CoursePage = () => {
-  const [staticConfigs, setStaticConfigs] = useState({});
+  const [staticChapters, setStaticChapters] = useState([]);
   const [dynamicChapters, setDynamicChapters] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [modal, setModal] = useState(null); // null | { type: 'create' | 'edit', chapter?: {} }
+  const [modal, setModal] = useState(null); // null | { type: 'create'|'edit'|'edit-static', chapter?: {} }
   const [togglingId, setTogglingId] = useState(null);
   const [deletingId, setDeletingId] = useState(null);
-  const [deleteConfirm, setDeleteConfirm] = useState(null); // { id, title }
+  const [deleteConfirm, setDeleteConfirm] = useState(null);
+  const [fetchingEdit, setFetchingEdit] = useState(null); // chapter id being fetched
 
   const fetchChapters = async () => {
     setLoading(true);
     try {
       const { data } = await api.get('/api/admin/chapters');
-      setStaticConfigs(data.static_configs || {});
+      setStaticChapters(data.static_chapters || []);
       setDynamicChapters(data.dynamic_chapters || []);
     } catch {}
     setLoading(false);
@@ -1178,20 +1180,27 @@ const CoursePage = () => {
 
   useEffect(() => { fetchChapters(); }, []);
 
-  const toggleStatic = async (chId, currentVisible) => {
-    setTogglingId(`static-${chId}`);
+  const openEditChapter = async (chapterId) => {
+    setFetchingEdit(chapterId);
     try {
-      await api.patch(`/api/admin/chapters/static/${chId}`, { visible: !currentVisible });
-      setStaticConfigs(prev => ({ ...prev, [String(chId)]: { ...prev[String(chId)], visible: !currentVisible } }));
-    } catch {}
-    setTogglingId(null);
+      const { data } = await api.get(`/api/admin/chapters/detail/${chapterId}`);
+      setModal({ type: 'edit', chapter: data });
+    } catch (e) {
+      alert(e.response?.data?.detail || 'Gagal memuat chapter. Pastikan seed_chapters.py sudah dijalankan.');
+    }
+    setFetchingEdit(null);
   };
 
-  const toggleDynamic = async (chapter) => {
-    setTogglingId(`dynamic-${chapter.id}`);
+  const toggleChapter = async (chapter) => {
+    const key = `toggle-${chapter.id}`;
+    setTogglingId(key);
     try {
-      await api.put(`/api/admin/chapters/dynamic/${chapter.id}`, { ...chapter, visible: !chapter.visible, lessons: chapter.lessons || [] });
-      setDynamicChapters(prev => prev.map(c => c.id === chapter.id ? { ...c, visible: !c.visible } : c));
+      await api.put(`/api/admin/chapters/detail/${chapter.id}`, { ...chapter, visible: !chapter.visible });
+      if (chapter.type === 'static') {
+        setStaticChapters(prev => prev.map(c => c.id === chapter.id ? { ...c, visible: !c.visible } : c));
+      } else {
+        setDynamicChapters(prev => prev.map(c => c.id === chapter.id ? { ...c, visible: !c.visible } : c));
+      }
     } catch {}
     setTogglingId(null);
   };
@@ -1212,8 +1221,12 @@ const CoursePage = () => {
 
   const handleEdit = async (form) => {
     const chId = modal.chapter.id;
-    await api.put(`/api/admin/chapters/dynamic/${chId}`, form);
-    setDynamicChapters(prev => prev.map(c => c.id === chId ? { ...c, ...form } : c));
+    await api.put(`/api/admin/chapters/detail/${chId}`, form);
+    if (modal.chapter.type === 'static') {
+      setStaticChapters(prev => prev.map(c => c.id === chId ? { ...c, ...form } : c));
+    } else {
+      setDynamicChapters(prev => prev.map(c => c.id === chId ? { ...c, ...form } : c));
+    }
   };
 
   if (loading) return <div className="flex justify-center py-20"><RefreshCw className="w-6 h-6 text-orange-500 animate-spin" /></div>;
@@ -1233,28 +1246,40 @@ const CoursePage = () => {
 
       {/* Static Chapters */}
       <div className="mb-8">
-        <p className="text-xs text-neutral-500 uppercase tracking-widest mb-3 px-1">Chapter Bawaan</p>
+        <p className="text-xs text-neutral-500 uppercase tracking-widest mb-3 px-1">
+          Chapter Bawaan ({staticChapters.length || STATIC_CHAPTERS.length})
+        </p>
         <div className="space-y-2">
-          {STATIC_CHAPTERS.map(ch => {
-            const cfg = staticConfigs[String(ch.id)] || {};
-            const visible = cfg.visible !== false;
-            const isToggling = togglingId === `static-${ch.id}`;
+          {(staticChapters.length > 0 ? staticChapters : STATIC_CHAPTERS).map(ch => {
+            const visible = ch.visible !== false;
+            const isToggling = togglingId === `toggle-${ch.id}`;
+            const isFetching = fetchingEdit === ch.id;
             return (
               <div key={ch.id} className="flex items-center gap-4 bg-[#1A1A1A] border border-white/10 rounded-xl px-4 py-3">
-                <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full border ${COLOR_BADGE[ch.color_theme] || COLOR_BADGE.orange}`}>
+                <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full border flex-shrink-0 ${COLOR_BADGE[ch.color_theme] || COLOR_BADGE.orange}`}>
                   Ch.{ch.id}
                 </span>
                 <div className="flex-1 min-w-0">
                   <p className="text-white text-sm font-semibold truncate">{ch.title}</p>
-                  <p className="text-neutral-500 text-xs">{ch.code}</p>
+                  <p className="text-neutral-500 text-xs">{(ch.lessons || []).length} lesson · {ch.code}</p>
                 </div>
-                <span className={`text-xs px-2 py-0.5 rounded-full ${visible ? 'bg-green-500/15 text-green-400' : 'bg-white/5 text-neutral-500'}`}>
+                <span className={`text-xs px-2 py-0.5 rounded-full flex-shrink-0 ${visible ? 'bg-green-500/15 text-green-400' : 'bg-white/5 text-neutral-500'}`}>
                   {visible ? 'Aktif' : 'Hidden'}
                 </span>
-                <button onClick={() => toggleStatic(ch.id, visible)} disabled={isToggling}
-                  className={`p-2 rounded-lg border transition-colors disabled:opacity-50 ${visible ? 'bg-green-500/10 border-green-500/20 text-green-400 hover:bg-green-500/20' : 'bg-white/5 border-white/10 text-neutral-400 hover:bg-white/10'}`}>
-                  {isToggling ? <RefreshCw className="w-4 h-4 animate-spin" /> : visible ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
-                </button>
+                <div className="flex items-center gap-1.5">
+                  <button
+                    onClick={() => openEditChapter(ch.id)}
+                    disabled={isFetching}
+                    className="p-2 rounded-lg bg-white/5 border border-white/10 text-neutral-400 hover:text-white hover:bg-white/10 transition-colors disabled:opacity-50"
+                    title="Edit chapter"
+                  >
+                    {isFetching ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Edit2 className="w-3.5 h-3.5" />}
+                  </button>
+                  <button onClick={() => toggleChapter(ch)} disabled={isToggling}
+                    className={`p-2 rounded-lg border transition-colors disabled:opacity-50 ${visible ? 'bg-green-500/10 border-green-500/20 text-green-400 hover:bg-green-500/20' : 'bg-white/5 border-white/10 text-neutral-400 hover:bg-white/10'}`}>
+                    {isToggling ? <RefreshCw className="w-4 h-4 animate-spin" /> : visible ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
+                  </button>
+                </div>
               </div>
             );
           })}
@@ -1278,8 +1303,9 @@ const CoursePage = () => {
           <div className="space-y-2">
             {dynamicChapters.map((ch, dynIdx) => {
               const visible = ch.visible !== false;
-              const isToggling = togglingId === `dynamic-${ch.id}`;
+              const isToggling = togglingId === `toggle-${ch.id}`;
               const isDeleting = deletingId === ch.id;
+              const isFetching = fetchingEdit === ch.id;
               const chapterNum = STATIC_CHAPTERS.length + dynIdx;
               return (
                 <div key={ch.id} className="flex items-center gap-4 bg-[#1A1A1A] border border-white/10 rounded-xl px-4 py-3">
@@ -1295,11 +1321,11 @@ const CoursePage = () => {
                     {visible ? 'Aktif' : 'Hidden'}
                   </span>
                   <div className="flex items-center gap-1.5">
-                    <button onClick={() => setModal({ type: 'edit', chapter: ch })}
-                      className="p-2 rounded-lg bg-white/5 border border-white/10 text-neutral-400 hover:text-white hover:bg-white/10 transition-colors">
-                      <Edit2 className="w-3.5 h-3.5" />
+                    <button onClick={() => openEditChapter(ch.id)} disabled={isFetching}
+                      className="p-2 rounded-lg bg-white/5 border border-white/10 text-neutral-400 hover:text-white hover:bg-white/10 transition-colors disabled:opacity-50">
+                      {isFetching ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Edit2 className="w-3.5 h-3.5" />}
                     </button>
-                    <button onClick={() => toggleDynamic(ch)} disabled={isToggling}
+                    <button onClick={() => toggleChapter(ch)} disabled={isToggling}
                       className={`p-2 rounded-lg border transition-colors disabled:opacity-50 ${visible ? 'bg-green-500/10 border-green-500/20 text-green-400 hover:bg-green-500/20' : 'bg-white/5 border-white/10 text-neutral-400 hover:bg-white/10'}`}>
                       {isToggling ? <RefreshCw className="w-4 h-4 animate-spin" /> : visible ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
                     </button>

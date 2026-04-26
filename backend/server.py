@@ -1,4 +1,4 @@
-from fastapi import FastAPI, APIRouter, HTTPException, Depends, status
+from fastapi import FastAPI, APIRouter, HTTPException, Depends, status, Request
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from fastapi.responses import StreamingResponse
 from dotenv import load_dotenv
@@ -715,9 +715,18 @@ class DynamicChapterCreate(BaseModel):
     lessons: List[DynamicLessonData] = []
 
 
+@api_router.get("/chapters")
+async def get_all_chapters():
+    """Returns all visible chapters with full content (for Dashboard)."""
+    chapters = await db.chapters.find(
+        {"visible": {"$ne": False}}, {"_id": 0}
+    ).sort("order", 1).to_list(200)
+    return chapters
+
+
 @api_router.get("/chapters-config")
 async def get_chapters_config():
-    """Returns static chapter overrides + all dynamic chapters (for user dashboard)."""
+    """Legacy endpoint — kept for backward compat."""
     static_docs = await db.chapter_config.find({"type": "static"}, {"_id": 0}).to_list(50)
     static_configs = {str(d["chapter_id"]): d for d in static_docs}
     dynamic = await db.dynamic_chapters.find({}, {"_id": 0}).sort("order", 1).to_list(100)
@@ -726,11 +735,42 @@ async def get_chapters_config():
 
 @api_router.get("/admin/chapters")
 async def admin_get_chapters(admin: dict = Depends(require_admin)):
-    """Returns all chapter info for admin panel."""
-    static_docs = await db.chapter_config.find({"type": "static"}, {"_id": 0}).to_list(50)
-    static_configs = {str(d["chapter_id"]): d for d in static_docs}
-    dynamic = await db.dynamic_chapters.find({}, {"_id": 0}).sort("order", 1).to_list(100)
-    return {"static_configs": static_configs, "dynamic_chapters": dynamic}
+    """Returns all chapters for admin panel (static + dynamic from chapters collection)."""
+    chapters = await db.chapters.find({}, {"_id": 0}).sort("order", 1).to_list(200)
+    static_chapters = [c for c in chapters if c.get("type") == "static"]
+    dynamic_chapters = [c for c in chapters if c.get("type") != "static"]
+    return {"static_chapters": static_chapters, "dynamic_chapters": dynamic_chapters}
+
+
+@api_router.get("/admin/chapters/detail/{chapter_id}")
+async def admin_get_chapter_detail(chapter_id: str, admin: dict = Depends(require_admin)):
+    """Get full chapter content for editing."""
+    try:
+        cid = int(chapter_id)
+    except ValueError:
+        cid = chapter_id
+    chapter = await db.chapters.find_one({"id": cid}, {"_id": 0})
+    if not chapter:
+        raise HTTPException(status_code=404, detail="Chapter tidak ditemukan. Jalankan seed_chapters.py terlebih dahulu.")
+    return chapter
+
+
+@api_router.put("/admin/chapters/detail/{chapter_id}")
+async def admin_update_chapter_detail(chapter_id: str, request: Request, admin: dict = Depends(require_admin)):
+    """Full content update for any chapter (static or dynamic)."""
+    data = await request.json()
+    try:
+        cid = int(chapter_id)
+    except ValueError:
+        cid = chapter_id
+    data.pop("_id", None)
+    data["updated_at"] = datetime.now(timezone.utc).isoformat()
+    result = await db.chapters.update_one(
+        {"id": cid},
+        {"$set": data},
+        upsert=True,
+    )
+    return {"ok": True}
 
 
 @api_router.patch("/admin/chapters/static/{chapter_id}")
