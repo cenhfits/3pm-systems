@@ -6,8 +6,8 @@ const BCA_NUMBER = '3850937418';
 const BCA_NAME = 'Vincent Hong';
 const PRICE = 'Rp279.000';
 const PRICE_NUM = '279000';
-const WHATSAPP_PRIMARY = '62859189684720';
-const WHATSAPP_BACKUP = '6282213939288';
+const WHATSAPP_PRIMARY = '6282213939288';
+const WHATSAPP_BACKUP = '62859189684720';
 
 export default function PaymentModal({ isOpen, onClose }) {
   const [copiedNo, setCopiedNo] = useState(false);
