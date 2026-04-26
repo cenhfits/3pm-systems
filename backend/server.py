@@ -854,6 +854,27 @@ async def admin_delete_dynamic_chapter(chapter_id: str, admin: dict = Depends(re
     return {"ok": True}
 
 
+# ── Seed ─────────────────────────────────────────────────────────────────────
+
+@api_router.post("/admin/seed-chapters")
+async def seed_chapters(admin: dict = Depends(require_admin)):
+    """Seed all static chapters to DB. Safe to run multiple times (upsert)."""
+    from seed_chapters import CHAPTERS
+    inserted, updated = 0, 0
+    for ch in CHAPTERS:
+        result = await db.chapters.update_one(
+            {"id": ch["id"], "type": "static"},
+            {"$set": ch},
+            upsert=True,
+        )
+        if result.upserted_id:
+            inserted += 1
+        else:
+            updated += 1
+    total = await db.chapters.count_documents({})
+    return {"ok": True, "inserted": inserted, "updated": updated, "total": total}
+
+
 # ── Health ────────────────────────────────────────────────────────────────────
 
 @api_router.get("/")

@@ -1166,7 +1166,9 @@ const CoursePage = () => {
   const [togglingId, setTogglingId] = useState(null);
   const [deletingId, setDeletingId] = useState(null);
   const [deleteConfirm, setDeleteConfirm] = useState(null);
-  const [fetchingEdit, setFetchingEdit] = useState(null); // chapter id being fetched
+  const [fetchingEdit, setFetchingEdit] = useState(null);
+  const [seeding, setSeeding] = useState(false);
+  const [seedResult, setSeedResult] = useState(null);
 
   const fetchChapters = async () => {
     setLoading(true);
@@ -1229,6 +1231,18 @@ const CoursePage = () => {
     }
   };
 
+  const handleSeed = async () => {
+    setSeeding(true); setSeedResult(null);
+    try {
+      const { data } = await api.post('/api/admin/seed-chapters');
+      setSeedResult({ ok: true, msg: `Selesai. ${data.inserted} inserted, ${data.updated} updated. Total: ${data.total} chapter.` });
+      fetchChapters();
+    } catch (e) {
+      setSeedResult({ ok: false, msg: e.response?.data?.detail || 'Gagal seed.' });
+    }
+    setSeeding(false);
+  };
+
   if (loading) return <div className="flex justify-center py-20"><RefreshCw className="w-6 h-6 text-orange-500 animate-spin" /></div>;
 
   return (
@@ -1238,11 +1252,25 @@ const CoursePage = () => {
           <h2 className="text-xl font-black text-white" style={{ fontFamily: 'Montserrat, sans-serif' }}>Course Management</h2>
           <p className="text-neutral-500 text-sm mt-0.5">On/off chapter, buat & edit materi baru</p>
         </div>
-        <button onClick={() => setModal({ type: 'create' })}
-          className="flex items-center gap-2 bg-orange-500 hover:bg-orange-400 text-black font-bold text-sm px-4 py-2.5 rounded-xl transition-all">
-          <Plus className="w-4 h-4" />Buat Chapter
-        </button>
+        <div className="flex items-center gap-2">
+          <button onClick={handleSeed} disabled={seeding}
+            className="flex items-center gap-2 bg-white/5 hover:bg-white/10 border border-white/10 text-neutral-300 font-semibold text-sm px-3 py-2.5 rounded-xl transition-all disabled:opacity-50"
+            title="Sync chapter bawaan ke database (jalankan sekali di server baru)">
+            {seeding ? <RefreshCw className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+            Sync DB
+          </button>
+          <button onClick={() => setModal({ type: 'create' })}
+            className="flex items-center gap-2 bg-orange-500 hover:bg-orange-400 text-black font-bold text-sm px-4 py-2.5 rounded-xl transition-all">
+            <Plus className="w-4 h-4" />Buat Chapter
+          </button>
+        </div>
       </div>
+      {seedResult && (
+        <div className={`mb-4 px-4 py-3 rounded-xl text-sm border ${seedResult.ok ? 'bg-green-500/10 border-green-500/20 text-green-400' : 'bg-red-500/10 border-red-500/20 text-red-400'}`}>
+          {seedResult.msg}
+          <button onClick={() => setSeedResult(null)} className="ml-3 text-xs opacity-60 hover:opacity-100">✕</button>
+        </div>
+      )}
 
       {/* Static Chapters */}
       <div className="mb-8">
