@@ -724,12 +724,9 @@ const LessonView = ({ lesson, isCompleted, onComplete, onBack, nextLesson, onNex
 
       <h2 className="text-xl sm:text-2xl font-bold text-white mb-6" style={{ fontFamily: 'Montserrat, sans-serif' }}>{lesson.title}</h2>
 
-      {lesson.type === 'video' && (
-        <div className="bg-[#1A1A1A] border border-white/10 rounded-2xl aspect-video flex flex-col items-center justify-center mb-6 gap-3 overflow-hidden">
-          {lesson.videoUrl
-            ? <iframe src={lesson.videoUrl} className="w-full h-full" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen" allowFullScreen title={lesson.title} />
-            : <><div className="w-16 h-16 rounded-full bg-orange-500/20 border border-orange-500/30 flex items-center justify-center"><Play className="w-7 h-7 text-orange-500 ml-1" /></div><p className="text-neutral-500 text-sm">Video akan segera tersedia</p></>
-          }
+      {lesson.type === 'video' && lesson.videoUrl && (
+        <div className="bg-[#1A1A1A] border border-white/10 rounded-2xl aspect-video mb-6 overflow-hidden">
+          <iframe src={lesson.videoUrl} className="w-full h-full" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen" allowFullScreen title={lesson.title} />
         </div>
       )}
 
