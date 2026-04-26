@@ -7,7 +7,9 @@ const BCA_NAME = 'Vincent Hong';
 const PRICE = 'Rp279.000';
 const PRICE_NUM = '279000';
 const WHATSAPP_PRIMARY = '6282213939288';
+const WHATSAPP_PRIMARY_DISPLAY = '+62 822-1393-9288';
 const WHATSAPP_BACKUP = '62859189684720';
+const WHATSAPP_BACKUP_DISPLAY = '+62 859-1896-84720';
 
 export default function PaymentModal({ isOpen, onClose }) {
   const [copiedNo, setCopiedNo] = useState(false);
@@ -176,7 +178,7 @@ export default function PaymentModal({ isOpen, onClose }) {
                     rel="noopener noreferrer"
                     className="text-green-500 underline underline-offset-2"
                   >
-                    +62 822-1393-9288
+                    {WHATSAPP_BACKUP_DISPLAY}
                   </a>
                 </p>
                 <div className="flex items-center justify-center gap-1.5 text-neutral-600 text-xs">
