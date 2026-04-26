@@ -149,6 +149,7 @@ class UserOut(BaseModel):
     has_access: bool = False
     is_admin: bool = False
     created_at: datetime
+    access_expires_at: Optional[str] = None
 
 class Token(BaseModel):
     access_token: str
@@ -187,13 +188,29 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(b
         raise HTTPException(status_code=401, detail="User tidak ditemukan")
     return user
 
+def _check_access(user: dict) -> bool:
+    """Returns True if user has valid (non-expired) access."""
+    if user.get("is_admin"):
+        return True
+    if not user.get("has_access", False):
+        return False
+    expires = user.get("access_expires_at")
+    if expires:
+        try:
+            exp_dt = datetime.fromisoformat(expires)
+            if exp_dt.tzinfo is None:
+                exp_dt = exp_dt.replace(tzinfo=timezone.utc)
+            if datetime.now(timezone.utc) > exp_dt:
+                return False
+        except Exception:
+            pass
+    return True
+
 def parse_user_out(user: dict) -> UserOut:
     created_at = user.get("created_at")
     if isinstance(created_at, str):
         created_at = datetime.fromisoformat(created_at)
-    # Admin always has access
-    has_access = user.get("has_access", False) or user.get("is_admin", False)
-    return UserOut(**{**user, "created_at": created_at, "has_access": has_access})
+    return UserOut(**{**user, "created_at": created_at, "has_access": _check_access(user)})
 
 # Total lessons per chapter (must match frontend)
 CHAPTER_LESSONS = {
@@ -414,6 +431,7 @@ class UserAdminOut(BaseModel):
     created_at: str
     overall_progress: float = 0.0
     completed_lessons: int = 0
+    access_expires_at: Optional[str] = None
 
 @api_router.get("/admin/users", response_model=List[UserAdminOut])
 async def admin_list_users(admin: dict = Depends(require_admin)):
@@ -431,21 +449,36 @@ async def admin_list_users(admin: dict = Depends(require_admin)):
             id=u["id"],
             name=u.get("name", ""),
             email=u.get("email", ""),
-            has_access=u.get("has_access", False),
+            has_access=_check_access(u),
             is_admin=u.get("is_admin", False),
             created_at=created_at,
             overall_progress=overall,
             completed_lessons=len(completed),
+            access_expires_at=u.get("access_expires_at"),
         ))
     return result
 
 
+class AccessGrantRequest(BaseModel):
+    user_id: str
+    duration: str = 'lifetime'  # '3months', '6months', '1year', 'lifetime'
+
 @api_router.post("/admin/grant-access")
-async def grant_access(data: AccessAction, admin: dict = Depends(require_admin)):
-    result = await db.users.update_one({"id": data.user_id}, {"$set": {"has_access": True}})
+async def grant_access(data: AccessGrantRequest, admin: dict = Depends(require_admin)):
+    now = datetime.now(timezone.utc)
+    if data.duration == '3months':
+        expires = (now + timedelta(days=90)).isoformat()
+    elif data.duration == '6months':
+        expires = (now + timedelta(days=180)).isoformat()
+    elif data.duration == '1year':
+        expires = (now + timedelta(days=365)).isoformat()
+    else:
+        expires = None
+    update = {"has_access": True, "access_expires_at": expires}
+    result = await db.users.update_one({"id": data.user_id}, {"$set": update})
     if result.matched_count == 0:
         raise HTTPException(status_code=404, detail="User tidak ditemukan")
-    return {"ok": True}
+    return {"ok": True, "expires_at": expires}
 
 
 @api_router.post("/admin/revoke-access")
@@ -583,6 +616,7 @@ async def admin_export_feedback(admin: dict = Depends(require_admin)):
 class BroadcastRequest(BaseModel):
     subject: str
     body: str  # plain text or HTML
+    target: str = 'all'  # 'all', 'has_access', 'no_access'
 
 
 def _broadcast_email_html(name: str, subject: str, body: str) -> str:
@@ -610,8 +644,13 @@ def _broadcast_email_html(name: str, subject: str, body: str) -> str:
 
 @api_router.post("/admin/broadcast-email")
 async def broadcast_email(data: BroadcastRequest, admin: dict = Depends(require_admin)):
-    """Send email to all registered users."""
-    users = await db.users.find({}, {"_id": 0, "email": 1, "name": 1}).to_list(5000)
+    """Send email to users filtered by access status."""
+    query: dict = {}
+    if data.target == 'has_access':
+        query["has_access"] = True
+    elif data.target == 'no_access':
+        query["has_access"] = False
+    users = await db.users.find(query, {"_id": 0, "email": 1, "name": 1}).to_list(5000)
     if not users:
         raise HTTPException(status_code=404, detail="Tidak ada user terdaftar.")
 
@@ -638,6 +677,141 @@ async def broadcast_email(data: BroadcastRequest, admin: dict = Depends(require_
         "total": len(users),
         "errors": errors[:10],  # return max 10 error samples
     }
+
+
+# ── Chapter Management ────────────────────────────────────────────────────────
+
+COLOR_THEMES = {
+    'orange': {'color': 'from-orange-500/20 to-orange-500/5', 'accent': 'text-orange-400', 'border': 'border-orange-500/30', 'badge': 'bg-orange-500/20 text-orange-400'},
+    'purple': {'color': 'from-purple-500/20 to-purple-500/5', 'accent': 'text-purple-400', 'border': 'border-purple-500/30', 'badge': 'bg-purple-500/20 text-purple-400'},
+    'blue':   {'color': 'from-blue-500/20 to-blue-500/5',   'accent': 'text-blue-400',   'border': 'border-blue-500/30',   'badge': 'bg-blue-500/20 text-blue-400'},
+    'green':  {'color': 'from-green-500/20 to-green-500/5', 'accent': 'text-green-400',  'border': 'border-green-500/30',  'badge': 'bg-green-500/20 text-green-400'},
+    'red':    {'color': 'from-red-500/20 to-red-500/5',     'accent': 'text-red-400',    'border': 'border-red-500/30',    'badge': 'bg-red-500/20 text-red-400'},
+    'cyan':   {'color': 'from-cyan-500/20 to-cyan-500/5',   'accent': 'text-cyan-400',   'border': 'border-cyan-500/30',   'badge': 'bg-cyan-500/20 text-cyan-400'},
+    'yellow': {'color': 'from-yellow-500/20 to-yellow-500/5','accent': 'text-yellow-400','border': 'border-yellow-500/30', 'badge': 'bg-yellow-500/20 text-yellow-400'},
+}
+
+class StaticChapterConfigUpdate(BaseModel):
+    visible: Optional[bool] = None
+    locked: Optional[bool] = None
+    coming_soon: Optional[bool] = None
+
+class DynamicLessonData(BaseModel):
+    id: Optional[str] = None
+    type: str = 'video'
+    title: str
+    duration: str = '10 min'
+    videoUrl: Optional[str] = None
+    content: List[dict] = []
+    visible: bool = True
+
+class DynamicChapterCreate(BaseModel):
+    title: str
+    code: str
+    icon_name: str = 'BookOpen'
+    color_theme: str = 'orange'
+    coming_soon: bool = False
+    visible: bool = True
+    lessons: List[DynamicLessonData] = []
+
+
+@api_router.get("/chapters-config")
+async def get_chapters_config():
+    """Returns static chapter overrides + all dynamic chapters (for user dashboard)."""
+    static_docs = await db.chapter_config.find({"type": "static"}, {"_id": 0}).to_list(50)
+    static_configs = {str(d["chapter_id"]): d for d in static_docs}
+    dynamic = await db.dynamic_chapters.find({}, {"_id": 0}).sort("order", 1).to_list(100)
+    return {"static_configs": static_configs, "dynamic_chapters": dynamic}
+
+
+@api_router.get("/admin/chapters")
+async def admin_get_chapters(admin: dict = Depends(require_admin)):
+    """Returns all chapter info for admin panel."""
+    static_docs = await db.chapter_config.find({"type": "static"}, {"_id": 0}).to_list(50)
+    static_configs = {str(d["chapter_id"]): d for d in static_docs}
+    dynamic = await db.dynamic_chapters.find({}, {"_id": 0}).sort("order", 1).to_list(100)
+    return {"static_configs": static_configs, "dynamic_chapters": dynamic}
+
+
+@api_router.patch("/admin/chapters/static/{chapter_id}")
+async def admin_update_static_chapter(chapter_id: int, data: StaticChapterConfigUpdate, admin: dict = Depends(require_admin)):
+    """Toggle visibility / locked / coming_soon for a built-in chapter."""
+    update_data = {k: v for k, v in data.dict().items() if v is not None}
+    if not update_data:
+        return {"ok": True}
+    update_data.update({"chapter_id": chapter_id, "type": "static"})
+    await db.chapter_config.update_one(
+        {"chapter_id": chapter_id, "type": "static"},
+        {"$set": update_data},
+        upsert=True,
+    )
+    return {"ok": True}
+
+
+@api_router.post("/admin/chapters/dynamic")
+async def admin_create_dynamic_chapter(data: DynamicChapterCreate, admin: dict = Depends(require_admin)):
+    """Create a new admin-defined chapter."""
+    chapter_id = str(uuid.uuid4())
+    lessons = []
+    for i, lesson in enumerate(data.lessons):
+        l = lesson.dict()
+        if not l.get("id"):
+            l["id"] = f"d{chapter_id[:6]}-{i+1}"
+        lessons.append(l)
+    last = await db.dynamic_chapters.find_one({}, sort=[("order", -1)])
+    order = (last.get("order", 90) + 10) if last else 100
+    doc = {
+        "id": chapter_id,
+        "title": data.title,
+        "code": data.code,
+        "icon_name": data.icon_name,
+        "color_theme": data.color_theme,
+        **COLOR_THEMES.get(data.color_theme, COLOR_THEMES["orange"]),
+        "coming_soon": data.coming_soon,
+        "visible": data.visible,
+        "order": order,
+        "lessons": lessons,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    }
+    await db.dynamic_chapters.insert_one(doc)
+    doc.pop("_id", None)
+    return doc
+
+
+@api_router.put("/admin/chapters/dynamic/{chapter_id}")
+async def admin_update_dynamic_chapter(chapter_id: str, data: DynamicChapterCreate, admin: dict = Depends(require_admin)):
+    """Update a dynamic chapter (full replace)."""
+    existing = await db.dynamic_chapters.find_one({"id": chapter_id})
+    if not existing:
+        raise HTTPException(status_code=404, detail="Chapter tidak ditemukan")
+    lessons = []
+    for i, lesson in enumerate(data.lessons):
+        l = lesson.dict()
+        if not l.get("id"):
+            l["id"] = f"d{chapter_id[:6]}-{i+1}"
+        lessons.append(l)
+    update = {
+        "title": data.title,
+        "code": data.code,
+        "icon_name": data.icon_name,
+        "color_theme": data.color_theme,
+        **COLOR_THEMES.get(data.color_theme, COLOR_THEMES["orange"]),
+        "coming_soon": data.coming_soon,
+        "visible": data.visible,
+        "lessons": lessons,
+        "updated_at": datetime.now(timezone.utc).isoformat(),
+    }
+    await db.dynamic_chapters.update_one({"id": chapter_id}, {"$set": update})
+    return {"ok": True}
+
+
+@api_router.delete("/admin/chapters/dynamic/{chapter_id}")
+async def admin_delete_dynamic_chapter(chapter_id: str, admin: dict = Depends(require_admin)):
+    """Delete a dynamic chapter."""
+    result = await db.dynamic_chapters.delete_one({"id": chapter_id})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Chapter tidak ditemukan")
+    return {"ok": True}
 
 
 # ── Health ────────────────────────────────────────────────────────────────────

@@ -724,10 +724,10 @@ const LessonView = ({ lesson, isCompleted, onComplete, onBack, nextLesson, onNex
 
       <h2 className="text-xl sm:text-2xl font-bold text-white mb-6" style={{ fontFamily: 'Montserrat, sans-serif' }}>{lesson.title}</h2>
 
-      {lesson.type === 'video' && !Array.isArray(lesson.content) && (
-        <div className="bg-[#1A1A1A] border border-white/10 rounded-2xl aspect-video flex flex-col items-center justify-center mb-6 gap-3">
+      {lesson.type === 'video' && (
+        <div className="bg-[#1A1A1A] border border-white/10 rounded-2xl aspect-video flex flex-col items-center justify-center mb-6 gap-3 overflow-hidden">
           {lesson.videoUrl
-            ? <iframe src={lesson.videoUrl} className="w-full h-full rounded-2xl" allow="autoplay; fullscreen" allowFullScreen title={lesson.title} />
+            ? <iframe src={lesson.videoUrl} className="w-full h-full" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen" allowFullScreen title={lesson.title} />
             : <><div className="w-16 h-16 rounded-full bg-orange-500/20 border border-orange-500/30 flex items-center justify-center"><Play className="w-7 h-7 text-orange-500 ml-1" /></div><p className="text-neutral-500 text-sm">Video akan segera tersedia</p></>
           }
         </div>
@@ -1344,6 +1344,13 @@ const BonusView = ({ renderBlocks }) => {
 };
 
 // ── Main Dashboard ────────────────────────────────────────────────────────────
+// Map icon name strings (from dynamic chapters) to Lucide components
+const ICON_MAP = {
+  Dumbbell, Brain, Utensils, ChefHat, TrendingUp, Calendar, Flag, Zap,
+  Play, FileText, CheckCircle, Star, LayoutDashboard, BookOpen: LayoutDashboard,
+  Dumbbell2: Dumbbell, Download,
+};
+
 export default function Dashboard() {
   const navigate = useNavigate();
   const [activeChapter, setActiveChapter] = useState(null);
@@ -1352,6 +1359,7 @@ export default function Dashboard() {
   const [overallProgress, setOverallProgress] = useState(0);
   const [chapterProgress, setChapterProgress] = useState({});
   const [activePage, setActivePage] = useState(null);
+  const [mergedChapters, setMergedChapters] = useState(chapters);
 
   // FIX 4: Feedback state — menyimpan {chapterId, pendingNextChapter} 
   // Feedback muncul saat perpindahan CHAPTER (bukan materi), setelah lesson terakhir selesai
@@ -1380,6 +1388,31 @@ export default function Dashboard() {
     }).catch(() => {
       navigate('/login');
     });
+    // Fetch chapter config (visibility overrides + dynamic chapters)
+    api.get('/api/chapters-config').then(({ data }) => {
+      const { static_configs = {}, dynamic_chapters = [] } = data;
+      // Apply visibility/locked/comingSoon overrides to static chapters
+      const updated = chapters.map(ch => {
+        const cfg = static_configs[String(ch.id)];
+        if (!cfg) return ch;
+        return {
+          ...ch,
+          ...(cfg.visible === false ? { hidden: true } : {}),
+          ...(cfg.locked != null ? { locked: cfg.locked } : {}),
+          ...(cfg.coming_soon != null ? { comingSoon: cfg.coming_soon } : {}),
+        };
+      }).filter(ch => !ch.hidden);
+      // Append visible dynamic chapters
+      const dynamicMapped = dynamic_chapters
+        .filter(dc => dc.visible !== false)
+        .map(dc => ({
+          ...dc,
+          icon: ICON_MAP[dc.icon_name] || LayoutDashboard,
+          locked: dc.coming_soon || false,
+          lessons: (dc.lessons || []).filter(l => l.visible !== false),
+        }));
+      setMergedChapters([...updated, ...dynamicMapped]);
+    }).catch(() => {});
   }, [navigate, fetchProgress]);
 
   useEffect(() => {
@@ -1503,8 +1536,8 @@ export default function Dashboard() {
 
         <nav className="flex-1 overflow-y-auto py-4 px-3">
           <p className="text-neutral-600 text-xs font-semibold uppercase tracking-widest px-3 mb-3">12 Week Journey</p>
-          {chapters.map((ch) => {
-            const Icon = ch.icon;
+          {mergedChapters.map((ch) => {
+            const Icon = ch.icon || ICON_MAP[ch.icon_name] || LayoutDashboard;
             const isActive = activeChapter?.id === ch.id;
             const pct = chapterProgress[String(ch.id)] || 0;
             return (
@@ -1554,6 +1587,11 @@ export default function Dashboard() {
           <button onClick={handleLogout} className="w-full flex items-center gap-2.5 px-3 py-2.5 text-neutral-400 hover:text-red-400 hover:bg-red-500/5 rounded-xl transition-all text-sm">
             <LogOut className="w-4 h-4" />Keluar
           </button>
+          <div className="flex items-center justify-center gap-3 mt-2">
+            <a href="/terms" className="text-neutral-500 hover:text-orange-400 text-[10px] transition-colors">S&K</a>
+            <a href="/privacy" className="text-neutral-500 hover:text-blue-400 text-[10px] transition-colors">Privasi</a>
+            <a href="/refund" className="text-neutral-500 hover:text-green-400 text-[10px] transition-colors">Refund</a>
+          </div>
         </div>
       </aside>
 
@@ -1594,7 +1632,7 @@ export default function Dashboard() {
                   completedLessons={completedLessons}
                   onLessonComplete={handleLessonComplete}
                   onBack={() => setActiveChapter(null)}
-                  allChapters={chapters}
+                  allChapters={mergedChapters}
                   onGoToChapter={handleGoToChapter}
                 />
               ) : (
@@ -1617,8 +1655,8 @@ export default function Dashboard() {
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
-                    {chapters.map((ch) => {
-                      const Icon = ch.icon;
+                    {mergedChapters.map((ch) => {
+                      const Icon = ch.icon || ICON_MAP[ch.icon_name] || LayoutDashboard;
                       const pct = chapterProgress[String(ch.id)] || 0;
                       return (
                         <motion.button key={ch.id} onClick={() => !ch.locked && setActiveChapter(ch)} disabled={ch.locked}

@@ -8,6 +8,9 @@ import ChatWidget from "./components/ChatWidget";
 const Dashboard = lazy(() => import("./pages/Dashboard"));
 const AdminDashboard = lazy(() => import("./pages/AdminDashboard"));
 const PaymentPage = lazy(() => import("./pages/PaymentPage"));
+const TermsPage = lazy(() => import("./pages/TermsPage"));
+const PrivacyPage = lazy(() => import("./pages/PrivacyPage"));
+const RefundPage = lazy(() => import("./pages/RefundPage"));
 
 function App() {
   return (
@@ -21,6 +24,9 @@ function App() {
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/admin" element={<AdminDashboard />} />
             <Route path="/payment" element={<PaymentPage />} />
+            <Route path="/terms" element={<TermsPage />} />
+            <Route path="/privacy" element={<PrivacyPage />} />
+            <Route path="/refund" element={<RefundPage />} />
           </Routes>
         </Suspense>
         <ChatWidget />

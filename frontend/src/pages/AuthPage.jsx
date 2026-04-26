@@ -149,6 +149,7 @@ export default function AuthPage() {
   const [resendCooldown, setResendCooldown] = useState(0);
 
   const [form, setForm] = useState({ name: '', phone: '', email: '', password: '' });
+  const [agreedToTerms, setAgreedToTerms] = useState(false);
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
 
@@ -417,9 +418,49 @@ export default function AuthPage() {
                     </button>
                   </div>
                 </Field>
+                {/* Terms checkbox */}
+                <label className="flex items-start gap-3 cursor-pointer group">
+                  <div className="relative flex-shrink-0 mt-0.5">
+                    <input
+                      type="checkbox"
+                      checked={agreedToTerms}
+                      onChange={e => setAgreedToTerms(e.target.checked)}
+                      className="sr-only"
+                    />
+                    <div
+                      onClick={() => setAgreedToTerms(v => !v)}
+                      className={`w-5 h-5 rounded-md border-2 flex items-center justify-center transition-all cursor-pointer ${
+                        agreedToTerms
+                          ? 'bg-orange-500 border-orange-500'
+                          : 'bg-transparent border-white/20 group-hover:border-white/40'
+                      }`}
+                    >
+                      {agreedToTerms && (
+                        <svg className="w-3 h-3 text-black" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                        </svg>
+                      )}
+                    </div>
+                  </div>
+                  <span className="text-neutral-400 text-xs leading-relaxed">
+                    Dengan mendaftar, saya menyetujui{' '}
+                    <a href="/terms" target="_blank" rel="noopener noreferrer" className="text-orange-400 hover:text-orange-300 underline underline-offset-2 transition-colors">
+                      Syarat &amp; Ketentuan
+                    </a>{' '}
+                    dan{' '}
+                    <a href="/privacy" target="_blank" rel="noopener noreferrer" className="text-orange-400 hover:text-orange-300 underline underline-offset-2 transition-colors">
+                      Kebijakan Privasi
+                    </a>{' '}
+                    3PM System.
+                  </span>
+                </label>
+
                 {error && <p className="text-red-400 text-sm bg-red-500/10 border border-red-500/20 rounded-xl px-4 py-3">{error}</p>}
-                <button type="submit" disabled={loading}
-                  className="w-full bg-orange-500 hover:bg-orange-400 disabled:opacity-50 text-black font-bold py-3 rounded-xl transition-all flex items-center justify-center gap-2 mt-2">
+                <button
+                  type="submit"
+                  disabled={loading || !agreedToTerms}
+                  className="w-full bg-orange-500 hover:bg-orange-400 disabled:opacity-40 disabled:cursor-not-allowed text-black font-bold py-3 rounded-xl transition-all flex items-center justify-center gap-2 mt-2"
+                >
                   {loading && <Loader2 className="w-4 h-4 animate-spin" />}
                   Lanjut Verifikasi →
                 </button>
@@ -525,6 +566,15 @@ export default function AuthPage() {
           )}
 
         </AnimatePresence>
+      </div>
+
+      {/* Footer */}
+      <div className="mt-8 flex items-center justify-center gap-4 flex-wrap">
+        <a href="/terms" className="text-neutral-500 hover:text-orange-400 text-xs transition-colors">Syarat &amp; Ketentuan</a>
+        <span className="text-neutral-700 text-xs">·</span>
+        <a href="/privacy" className="text-neutral-500 hover:text-blue-400 text-xs transition-colors">Kebijakan Privasi</a>
+        <span className="text-neutral-700 text-xs">·</span>
+        <a href="/refund" className="text-neutral-500 hover:text-green-400 text-xs transition-colors">Kebijakan Refund</a>
       </div>
     </div>
   );
