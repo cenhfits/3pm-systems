@@ -17,7 +17,7 @@ import requests as http_requests
 from datetime import datetime, timezone, timedelta
 from passlib.context import CryptContext
 from jose import JWTError, jwt
-import pandas as pd
+# pandas imported lazily in export endpoint only
 
 EMAIL_FROM_NAME = "3PM System"
 
@@ -597,6 +597,7 @@ async def admin_export_feedback(admin: dict = Depends(require_admin)):
                 row[q] = a
             rows.append(row)
 
+    import pandas as pd
     df = pd.DataFrame(rows)
     output = io.BytesIO()
     with pd.ExcelWriter(output, engine="openpyxl") as writer:
@@ -898,6 +899,10 @@ logger = logging.getLogger(__name__)
 async def auto_seed_chapters():
     """Auto-seed static chapters on startup if not already in DB."""
     try:
+        import sys, os as _os
+        _dir = _os.path.dirname(_os.path.abspath(__file__))
+        if _dir not in sys.path:
+            sys.path.insert(0, _dir)
         from seed_chapters import CHAPTERS
         existing = await db.chapters.count_documents({"type": "static"})
         if existing >= len(CHAPTERS):
